@@ -262,6 +262,140 @@ const sendEmail = async (
   }
 };
 
+// Function to send a verification code email
+export const sendVerificationCode = functions.https.onCall(async (data: Record<string, unknown>, context: functions.https.CallableContext) => {
+  try {
+    // Validate input data
+    const { email, code } = data;
+    
+    if (!email || typeof email !== 'string') {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Email is required"
+      );
+    }
+    
+    if (!code || typeof code !== 'string') {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Verification code is required"
+      );
+    }
+    
+    // Create a custom email template for verification code
+    const verificationCodeTemplate = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>Your Verification Code</title>
+      <style>
+        body {
+          font-family: 'SF Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+          line-height: 1.6;
+          color: #000000;
+          margin: 0;
+          padding: 0;
+          background-color: #f9f9f9;
+        }
+        .container {
+          max-width: 600px;
+          margin: 0 auto;
+          padding: 20px;
+          background-color: #fff;
+          border-radius: 8px;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+          text-align: center;
+          padding: 20px 0;
+          border-bottom: 1px solid #e0e0e0;
+        }
+        .logo {
+          max-width: 150px;
+          margin-bottom: 20px;
+        }
+        h1 {
+          color: #000000;
+          font-size: 24px;
+          margin: 0;
+          padding: 0;
+        }
+        .content {
+          padding: 20px 0;
+        }
+        .verification-code {
+          text-align: center;
+          font-size: 32px;
+          font-weight: bold;
+          letter-spacing: 4px;
+          margin: 30px 0;
+          padding: 15px;
+          background-color: #f5f5f5;
+          border-radius: 4px;
+        }
+        .footer {
+          text-align: center;
+          color: #757575;
+          font-size: 12px;
+          padding: 20px 0;
+          border-top: 1px solid #e0e0e0;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <img src="https://raw.githubusercontent.com/benzaid32/the-assist-app/main/src/assets/images/logo.png" alt="The Assist App" class="logo">
+          <h1>Verify Your Email</h1>
+        </div>
+        <div class="content">
+          <p>Hello,</p>
+          <p>Thank you for signing up with The Assist App. To complete your registration, please use the verification code below:</p>
+          <div class="verification-code">${code}</div>
+          <p>This code will expire in 30 minutes.</p>
+          <p>If you didn't create an account with us, you can safely ignore this email.</p>
+        </div>
+        <div class="footer">
+          <p>&copy; ${new Date().getFullYear()} The Assist App. All rights reserved.</p>
+          <p><a href="mailto:support@theassistapp.org" style="color: #404040; text-decoration: none;">support@theassistapp.org</a></p>
+        </div>
+      </div>
+    </body>
+    </html>
+    `;
+    
+    // Initialize Resend for email delivery
+    const resend = initializeResend();
+    
+    // Send the email with the verification code
+    await resend.emails.send({
+      from: "The Assist App <verification@theassistapp.org>",
+      to: email,
+      subject: "Your Verification Code - The Assist App",
+      html: verificationCodeTemplate,
+    });
+    
+    // Log the action for auditing
+    functions.logger.info(`Verification code email sent to ${email}`);
+    
+    return { success: true, message: "Verification code sent successfully" };
+  } catch (error) {
+    functions.logger.error("Error sending verification code:", error);
+    
+    if (error instanceof functions.https.HttpsError) {
+      throw error;
+    }
+    
+    throw new functions.https.HttpsError(
+      "internal",
+      "Failed to send verification code",
+      { message: (error as Error).message }
+    );
+  }
+});
+
 // Function to send a custom verification email
 export const sendVerificationEmail = functions.https.onCall(async (data: Record<string, unknown>, context: functions.https.CallableContext) => {
   try {

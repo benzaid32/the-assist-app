@@ -19,7 +19,9 @@ const initialAuthState: AuthState = {
 // Create context interface
 interface AuthContextType extends AuthState {
   login: (credentials: LoginCredentials) => Promise<void>;
-  signup: (credentials: SignupCredentials) => Promise<void>;
+  signup: (credentials: SignupCredentials) => Promise<{userId: string; verificationCode: string}>;
+  verifyEmail: (userId: string, code: string) => Promise<boolean>;
+  resendVerificationCode: (userId: string, email: string) => Promise<string>;
   logout: () => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
   sendVerificationEmail: () => Promise<void>;
@@ -74,14 +76,81 @@ export const AuthProvider = ({ children, auth, firestore }: AuthProviderProps) =
   const signup = async (credentials: SignupCredentials) => {
     try {
       setState(prev => ({ ...prev, isLoading: true, error: null }));
-      const user = await signUp(auth, firestore, credentials); 
+      const result = await signUp(auth, firestore, credentials); 
+      
+      // Set user state but don't mark as authenticated yet (needs verification)
       setState(prev => ({ 
         ...prev, 
-        user, 
-        isAuthenticated: true,
+        user: result.user, 
         isLoading: false,
         error: null
       }));
+      
+      // Return the userId and verification code for the verification step
+      return {
+        userId: result.user.userId,
+        verificationCode: result.verificationCode
+      };
+    } catch (error) {
+      setState(prev => ({
+        ...prev,
+        isLoading: false,
+        error: error instanceof Error ? error.message : 'An unknown error occurred',
+      }));
+      throw error;
+    }
+  };
+  
+  // Handle email verification with code
+  const verifyEmail = async (userId: string, code: string) => {
+    try {
+      setState(prev => ({ ...prev, isLoading: true, error: null }));
+      
+      // Import the verification function
+      const { verifyEmailWithCode } = await import('../services/firebase/auth');
+      
+      // Verify the code
+      const success = await verifyEmailWithCode(firestore, userId, code);
+      
+      if (success) {
+        // If verification is successful, update the user state to authenticated
+        setState(prev => ({
+          ...prev,
+          isAuthenticated: true,
+          isLoading: false,
+          error: null
+        }));
+      }
+      
+      return success;
+    } catch (error) {
+      setState(prev => ({
+        ...prev,
+        isLoading: false,
+        error: error instanceof Error ? error.message : 'An unknown error occurred',
+      }));
+      throw error;
+    }
+  };
+  
+  // Handle resending verification code
+  const resendVerificationCode = async (userId: string, email: string) => {
+    try {
+      setState(prev => ({ ...prev, isLoading: true, error: null }));
+      
+      // Import the resend function
+      const { resendVerificationCode: resendCode } = await import('../services/firebase/auth');
+      
+      // Resend the code
+      const newCode = await resendCode(firestore, userId, email);
+      
+      setState(prev => ({
+        ...prev,
+        isLoading: false,
+        error: null
+      }));
+      
+      return newCode;
     } catch (error) {
       setState(prev => ({
         ...prev,
@@ -243,19 +312,19 @@ export const AuthProvider = ({ children, auth, firestore }: AuthProviderProps) =
   }, [auth, firestore]); 
 
   // Context value
-  const contextValue: AuthContextType = {
-    ...state,
-    login,
-    signup,
-    logout,
-    sendPasswordReset,
-    sendVerificationEmail,
-    isEmailVerified,
-    clearError,
-  };
-
   return (
-    <AuthContext.Provider value={contextValue}>
+    <AuthContext.Provider value={{
+      ...state,
+      login,
+      signup,
+      verifyEmail,
+      resendVerificationCode,
+      logout,
+      sendPasswordReset,
+      sendVerificationEmail,
+      isEmailVerified,
+      clearError
+    }}>
       {children}
     </AuthContext.Provider>
   );

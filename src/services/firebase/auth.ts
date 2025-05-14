@@ -79,9 +79,9 @@ export const signIn = async (auth: firebase.auth.Auth, firestore: firebase.fires
  * @param auth Firebase Auth instance
  * @param firestore Firebase Firestore instance
  * @param credentials Signup credentials
- * @returns Promise resolving to user data
+ * @returns Promise resolving to user data and verification code
  */
-export const signUp = async (auth: firebase.auth.Auth, firestore: firebase.firestore.Firestore, credentials: SignupCredentials): Promise<User> => {
+export const signUp = async (auth: firebase.auth.Auth, firestore: firebase.firestore.Firestore, credentials: SignupCredentials): Promise<{ user: User; verificationCode: string }> => {
   try {
     const { email, password, userType } = credentials;
     
@@ -94,17 +94,34 @@ export const signUp = async (auth: firebase.auth.Auth, firestore: firebase.fires
     const { uid } = userCredential.user;
     console.log(`User created successfully with ID: ${uid}`);
     
-    // Send email verification
+    // Generate a verification code
+    // Generate a 6-digit verification code
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    // Store the verification code in Firestore with expiration time (30 minutes from now)
+    const verificationRef = firestore.collection('verificationCodes').doc(uid);
+    await verificationRef.set({
+      code: verificationCode,
+      email: email,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      expiresAt: new Date(Date.now() + 30 * 60 * 1000), // 30 minutes from now
+      verified: false
+    });
+    
+    // Send the verification code via email using Firebase Functions
     try {
-      await userCredential.user.sendEmailVerification({
-        url: process.env.REACT_APP_CONFIRMATION_EMAIL_REDIRECT || window.location.origin,
-        handleCodeInApp: true,
+      const functions = firebase.functions();
+      const sendVerificationCodeEmail = functions.httpsCallable('sendVerificationCode');
+      await sendVerificationCodeEmail({
+        email,
+        code: verificationCode,
+        userId: uid
       });
-      console.log('Verification email sent successfully');
-    } catch (verificationError) {
-      console.error('Failed to send verification email:', verificationError);
-      // Continue with account creation even if email verification fails
-      // This prevents blocking user registration due to email service issues
+      console.log('Verification code email sent successfully');
+    } catch (emailError) {
+      console.error('Failed to send verification code email:', emailError);
+      // Continue with account creation even if email sending fails
+      // The user can request a new code later
     }
     
     // Use a batch write for data consistency across collections
@@ -138,10 +155,11 @@ export const signUp = async (auth: firebase.auth.Auth, firestore: firebase.fires
         stripeId: null,
         startDate: now,
         paymentHistory: [],
+        createdAt: now,
+        updatedAt: now,
         metadata: {
           createdBy: 'signup_process',
-          updatedBy: 'signup_process',
-          environment: process.env.NODE_ENV || 'development'
+          updatedBy: 'signup_process'
         }
       });
       console.log('Created subscriber record');
@@ -150,35 +168,29 @@ export const signUp = async (auth: firebase.auth.Auth, firestore: firebase.fires
       const applicantRef = firestore.collection('applicants').doc(uid);
       batch.set(applicantRef, {
         userId: uid, // Not in rules but needed for our app logic
-        status: 'PENDING_REVIEW', // Required by security rules
-        documents: [], // Required by security rules
-        financialInfo: {
-          requestAmount: 0,
-          needType: 'unspecified'
-        },
-        verificationStatus: 'pending',
+        status: 'pending',
+        applicationDate: now,
+        documents: [],
+        assistanceHistory: [],
+        createdAt: now,
+        updatedAt: now,
         metadata: {
           createdBy: 'signup_process',
-          updatedBy: 'signup_process',
-          environment: process.env.NODE_ENV || 'development'
+          updatedBy: 'signup_process'
         }
       });
       console.log('Created applicant record');
-    }
-    
-    // Add detailed logging before commit
-    console.log('About to commit batch with the following operations:');
-    console.log('- Creating user document for:', uid);
-    if (userType === 'subscriber') {
-      console.log('- Creating subscriber record for:', uid);
-    } else if (userType === 'applicant') {
-      console.log('- Creating applicant record for:', uid);
     }
     
     // Commit all database operations atomically
     try {
       await batch.commit();
       console.log('All user records created successfully');
+      if (userType === 'subscriber') {
+        console.log('- Created subscriber record for:', uid);
+      } else if (userType === 'applicant') {
+        console.log('- Created applicant record for:', uid);
+      }
     } catch (batchError) {
       console.error('Batch commit failed with error:', batchError);
       if (batchError instanceof Error) {
@@ -188,7 +200,7 @@ export const signUp = async (auth: firebase.auth.Auth, firestore: firebase.fires
       throw batchError;
     }
     
-    // Construct and return user data object
+    // Construct user data object
     const user: User = {
       userId: uid,
       email,
@@ -197,7 +209,8 @@ export const signUp = async (auth: firebase.auth.Auth, firestore: firebase.fires
       profileCompleted: false
     };
     
-    return user;
+    // Return both the user data and verification code
+    return { user, verificationCode };
   } catch (error) {
     console.error('Sign up error:', error);
     
@@ -302,6 +315,119 @@ export const resendVerificationEmail = async (auth: firebase.auth.Auth): Promise
 };
 
 /**
+ * Verifies a user's email using a verification code
+ * @param firestore Firebase Firestore instance
+ * @param userId User ID
+ * @param code Verification code
+ * @returns Promise resolving to a boolean indicating success
+ */
+export const verifyEmailWithCode = async (
+  firestore: firebase.firestore.Firestore,
+  userId: string,
+  code: string
+): Promise<boolean> => {
+  try {
+    // Get the verification code document
+    const verificationRef = firestore.collection('verificationCodes').doc(userId);
+    const verificationDoc = await verificationRef.get();
+    
+    if (!verificationDoc.exists) {
+      console.error('Verification code not found for user:', userId);
+      throw new Error('Verification code not found. Please request a new code.');
+    }
+    
+    const verificationData = verificationDoc.data();
+    if (!verificationData) {
+      throw new Error('Verification data is missing. Please request a new code.');
+    }
+    
+    // Check if the code has expired
+    const expiresAt = verificationData.expiresAt?.toDate();
+    if (expiresAt && expiresAt < new Date()) {
+      throw new Error('Verification code has expired. Please request a new code.');
+    }
+    
+    // Check if the code matches
+    if (verificationData.code !== code) {
+      throw new Error('Invalid verification code. Please try again.');
+    }
+    
+    // Mark the code as verified
+    await verificationRef.update({
+      verified: true,
+      verifiedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    
+    // Update the user document to mark email as verified
+    const userRef = firestore.collection('users').doc(userId);
+    await userRef.update({
+      emailVerified: true,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    
+    return true;
+  } catch (error) {
+    console.error('Email verification error:', error);
+    if (error instanceof Error) {
+      throw error; // Re-throw the error with the specific message
+    }
+    throw new Error('Failed to verify email due to an unexpected error. Please try again.');
+  }
+};
+
+/**
+ * Resends a verification code to the user
+ * @param firestore Firebase Firestore instance
+ * @param userId User ID
+ * @param email User email
+ * @returns Promise resolving to the new verification code
+ */
+export const resendVerificationCode = async (
+  firestore: firebase.firestore.Firestore,
+  userId: string,
+  email: string
+): Promise<string> => {
+  try {
+    // Generate a new 6-digit verification code
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    // Update the verification code in Firestore with a new expiration time
+    const verificationRef = firestore.collection('verificationCodes').doc(userId);
+    await verificationRef.set({
+      code: verificationCode,
+      email: email,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      expiresAt: new Date(Date.now() + 30 * 60 * 1000), // 30 minutes from now
+      verified: false
+    });
+    
+    // Send the verification code via email using Firebase Functions
+    try {
+      const functions = firebase.functions();
+      const sendVerificationCodeEmail = functions.httpsCallable('sendVerificationCode');
+      await sendVerificationCodeEmail({
+        email,
+        code: verificationCode,
+        userId: userId
+      });
+      console.log('New verification code email sent successfully');
+    } catch (emailError) {
+      console.error('Failed to send verification code email:', emailError);
+      // Continue even if email sending fails
+      // The code is still generated and stored in Firestore
+    }
+    
+    return verificationCode;
+  } catch (error) {
+    console.error('Failed to resend verification code:', error);
+    if (error instanceof Error) {
+      throw new Error(`Failed to resend verification code: ${error.message}`);
+    }
+    throw new Error('Failed to resend verification code due to an unexpected error.');
+  }
+};
+
+/**
  * Sends a password reset email
  * @param auth Firebase Auth instance
  * @param email User email
@@ -309,20 +435,24 @@ export const resendVerificationEmail = async (auth: firebase.auth.Auth): Promise
  */
 export const resetPassword = async (auth: firebase.auth.Auth, email: string): Promise<void> => {
   try {
-    await auth.sendPasswordResetEmail(email);
+    await auth.sendPasswordResetEmail(email, {
+      url: process.env.REACT_APP_CONFIRMATION_EMAIL_REDIRECT || window.location.origin,
+      handleCodeInApp: true,
+    });
   } catch (error) {
     console.error('Password reset error:', error);
     if (error instanceof Error) {
       const errorMessage = error.message.toLowerCase();
-      if (errorMessage.includes('auth/user-not-found') || errorMessage.includes('auth/invalid-email')) {
-        throw new Error('No account found with this email. Please check the email address.');
-      } else if (errorMessage.includes('auth/too-many-requests')){
-        throw new Error('Too many requests. Please try again later.');
-      } else if (errorMessage.includes('auth/network-request-failed')){
-        throw new Error('Network error. Please check your internet connection.');
+      if (errorMessage.includes('auth/user-not-found')) {
+        // Don't reveal if user exists for security reasons
+        return;
+      } else if (errorMessage.includes('auth/invalid-email')) {
+        throw new Error('Invalid email format. Please enter a valid email address.');
+      } else if (errorMessage.includes('auth/network-request-failed')) {
+        throw new Error('Network error. Please check your internet connection and try again.');
       }
-      throw new Error(error.message || 'Password reset failed. Please try again.');
+      throw new Error(error.message || 'Failed to send password reset email. Please try again.');
     }
-    throw new Error('Failed to send password reset email due to an unexpected error.');
+    throw new Error('Failed to send password reset email due to an unexpected error. Please try again.');
   }
 };

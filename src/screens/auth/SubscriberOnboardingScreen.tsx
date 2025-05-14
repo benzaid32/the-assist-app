@@ -8,11 +8,14 @@ import {
   TextInput,
   ActivityIndicator,
   ScrollView,
-  Platform
+  Platform,
+  Alert
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import firebase from 'firebase/compat/app';
+import 'firebase/compat/firestore';
 import { useAuth } from '../../contexts/AuthContext';
 import { colors, typography } from '../../constants/theme';
 import { UserType } from '../../types/auth';
@@ -40,6 +43,12 @@ export const SubscriberOnboardingScreen = () => {
   const [subscriptionAmount, setSubscriptionAmount] = useState('10');
   const [isCustomAmount, setIsCustomAmount] = useState(false);
   const [customAmount, setCustomAmount] = useState('');
+  
+  // Verification state
+  const [showVerification, setShowVerification] = useState(false);
+  const [verificationCode, setVerificationCode] = useState('');
+  const [userId, setUserId] = useState('');
+  const [verificationError, setVerificationError] = useState<string | null>(null);
 
   // Handle back button press
   const handleBack = () => {
@@ -50,6 +59,76 @@ export const SubscriberOnboardingScreen = () => {
       if (error instanceof Error) {
         console.error(`Failed to navigate back: ${error.message}`);
       }
+    }
+  };
+
+  // Handle verification code submission
+  const handleVerifyCode = async () => {
+    if (!verificationCode) {
+      setVerificationError('Please enter the verification code');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      setVerificationError(null);
+      
+      // Get verification functions from AuthContext
+      const { verifyEmail } = useAuth();
+      
+      // Verify the code using the Firebase service
+      const success = await verifyEmail(userId, verificationCode);
+      
+      if (success) {
+        // Determine the final amount to use
+        const finalAmount = isCustomAmount 
+          ? parseFloat(customAmount) 
+          : parseInt(subscriptionAmount, 10);
+        
+        // Store additional subscriber data in Firestore
+        const firestore = firebase.firestore();
+        await firestore.collection('subscribers').doc(userId).update({
+          name,
+          subscriptionAmount: finalAmount,
+          profileComplete: true,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        // Navigate to home screen after successful verification
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'AppTabs' }],
+        });
+      } else {
+        setVerificationError('Verification failed. Please try again with the correct code.');
+      }
+    } catch (error) {
+      console.error('Verification error:', error);
+      setVerificationError(error instanceof Error ? error.message : 'An error occurred during verification');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Handle resending verification code
+  const handleResendCode = async () => {
+    try {
+      setIsLoading(true);
+      setVerificationError(null);
+      
+      // Get resend function from AuthContext
+      const { resendVerificationCode } = useAuth();
+      
+      // Resend the verification code
+      await resendVerificationCode(userId, email);
+      
+      // Show success message
+      setVerificationError('A new verification code has been sent to your email.');
+    } catch (error) {
+      console.error('Error resending code:', error);
+      setVerificationError(error instanceof Error ? error.message : 'Failed to resend verification code');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -78,28 +157,26 @@ export const SubscriberOnboardingScreen = () => {
       setIsLoading(true);
       setError(null);
 
-      // Sign up the user with proper type safety
-      await signup({
+      // Sign up the user with proper type safety and get verification info
+      const result = await signup({
         email,
         password,
         userType: UserType.SUBSCRIBER,
-        // Store additional user data in a separate call or extend the auth context
-        // to handle these additional fields
       });
       
-      // Determine the final amount to use
-      const finalAmount = isCustomAmount 
-        ? parseFloat(customAmount) 
-        : parseInt(subscriptionAmount, 10);
+      // Store the user ID for verification
+      setUserId(result.userId);
       
-      // Note: In a production app, we would store the additional user data
-      // (name and subscription amount) in a separate Firestore document
-      console.log('Additional user data to store:', {
-        name,
-        subscriptionAmount: finalAmount
-      });
-
-      // Navigation will happen automatically via the AuthContext
+      // Show verification screen
+      setShowVerification(true);
+      
+      // Show verification instructions
+      Alert.alert(
+        'Verification Required',
+        `A verification code has been sent to ${email}. Please check your email and enter the code to complete your registration.`,
+        [{ text: 'OK', onPress: () => console.log('Verification alert closed') }]
+      );
+      
     } catch (error) {
       console.error('Signup error:', error);
       setError(error instanceof Error ? error.message : 'An error occurred during signup');
@@ -124,133 +201,208 @@ export const SubscriberOnboardingScreen = () => {
         
         {/* Title - Centered and larger like other screens */}
         <View style={styles.titleContainer}>
-          <Text style={styles.title}>Subscriber Details</Text>
-          <Text style={styles.subtitle}>Complete your profile</Text>
+          {showVerification ? (
+            <>
+              <Text style={styles.title}>Verify Your Email</Text>
+              <Text style={styles.subtitle}>Enter the code sent to {email}</Text>
+            </>
+          ) : (
+            <>
+              <Text style={styles.title}>Subscriber Details</Text>
+              <Text style={styles.subtitle}>Complete your profile</Text>
+            </>
+          )}
         </View>
 
         {/* Form */}
         <View style={styles.formContainer}>
-          <Text style={styles.formLabel}>Full Name</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter your full name"
-            value={name}
-            onChangeText={setName}
-            autoCapitalize="words"
-            testID="name-input"
-          />
-
-          <Text style={styles.formLabel}>Email</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter your email"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            testID="email-input"
-          />
-
-          <Text style={styles.formLabel}>Password</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Create a password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            testID="password-input"
-          />
-
-          <Text style={styles.formLabel}>Monthly Contribution</Text>
-          <View style={styles.amountContainer}>
-            <TouchableOpacity 
-              style={[styles.amountOption, subscriptionAmount === '1' && !isCustomAmount && styles.amountOptionSelected]}
-              onPress={() => {
-                setSubscriptionAmount('1');
-                setIsCustomAmount(false);
-              }}
-              testID="amount-1"
-            >
-              <Text style={[styles.amountText, subscriptionAmount === '1' && !isCustomAmount && styles.amountTextSelected]}>$1</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.amountOption, subscriptionAmount === '5' && !isCustomAmount && styles.amountOptionSelected]}
-              onPress={() => {
-                setSubscriptionAmount('5');
-                setIsCustomAmount(false);
-              }}
-              testID="amount-5"
-            >
-              <Text style={[styles.amountText, subscriptionAmount === '5' && !isCustomAmount && styles.amountTextSelected]}>$5</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.amountOption, subscriptionAmount === '10' && !isCustomAmount && styles.amountOptionSelected]}
-              onPress={() => {
-                setSubscriptionAmount('10');
-                setIsCustomAmount(false);
-              }}
-              testID="amount-10"
-            >
-              <Text style={[styles.amountText, subscriptionAmount === '10' && !isCustomAmount && styles.amountTextSelected]}>$10</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.amountOption, subscriptionAmount === '20' && !isCustomAmount && styles.amountOptionSelected]}
-              onPress={() => {
-                setSubscriptionAmount('20');
-                setIsCustomAmount(false);
-              }}
-              testID="amount-20"
-            >
-              <Text style={[styles.amountText, subscriptionAmount === '20' && !isCustomAmount && styles.amountTextSelected]}>$20</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.amountOption, isCustomAmount && styles.amountOptionSelected]}
-              onPress={() => {
-                setIsCustomAmount(true);
-              }}
-              testID="amount-custom"
-            >
-              <Text style={[styles.amountText, isCustomAmount && styles.amountTextSelected]}>Other</Text>
-            </TouchableOpacity>
-          </View>
-          
-          {isCustomAmount && (
-            <View style={styles.customAmountContainer}>
-              <Text style={styles.customAmountLabel}>Enter custom amount:</Text>
-              <View style={styles.customAmountInputContainer}>
-                <Text style={styles.currencySymbol}>$</Text>
-                <TextInput
-                  style={styles.customAmountInput}
-                  placeholder="0.00"
-                  value={customAmount}
-                  onChangeText={setCustomAmount}
-                  keyboardType="decimal-pad"
-                  testID="custom-amount-input"
-                />
+          {showVerification ? (
+            /* Verification Code Form */
+            <>
+              <View style={styles.verificationContainer}>
+                <Ionicons name="mail-outline" size={48} color={colors.accent} style={styles.verificationIcon} />
+                
+                <Text style={styles.verificationTitle}>Check Your Email</Text>
+                
+                <Text style={styles.verificationText}>
+                  We've sent a 6-digit verification code to <Text style={styles.verificationEmail}>{email}</Text>. Please enter it below to complete your registration.
+                </Text>
+                
+                <View style={styles.codeInputContainer}>
+                  <TextInput
+                    style={[styles.input, styles.verificationInput]}
+                    placeholder="Enter 6-digit code"
+                    value={verificationCode}
+                    onChangeText={setVerificationCode}
+                    keyboardType="number-pad"
+                    maxLength={6}
+                    testID="verification-input"
+                    autoFocus={true}
+                  />
+                </View>
+                
+                {verificationError && (
+                  <Text style={[styles.errorText, verificationError.includes('sent') ? styles.successText : null]}>
+                    {verificationError}
+                  </Text>
+                )}
+                
+                <TouchableOpacity 
+                  style={styles.submitButton}
+                  onPress={handleVerifyCode}
+                  disabled={isLoading || verificationCode.length !== 6}
+                  testID="verify-button"
+                >
+                  {isLoading ? (
+                    <ActivityIndicator color={colors.white} size="small" />
+                  ) : (
+                    <Text style={styles.submitButtonText}>Verify & Continue</Text>
+                  )}
+                </TouchableOpacity>
+                
+                <View style={styles.resendContainer}>
+                  <Text style={styles.resendText}>Didn't receive the code?</Text>
+                  <TouchableOpacity 
+                    style={styles.resendButton}
+                    onPress={handleResendCode}
+                    disabled={isLoading}
+                    testID="resend-button"
+                  >
+                    <Text style={styles.resendButtonText}>Resend Code</Text>
+                  </TouchableOpacity>
+                </View>
+                
+                <Text style={styles.verificationNote}>
+                  The verification code will expire in 30 minutes.
+                </Text>
               </View>
-            </View>
-          )}
+            </>
+          ) : (
+            /* Signup Form */
+            <>
+              <Text style={styles.formLabel}>Full Name</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your full name"
+                value={name}
+                onChangeText={setName}
+                autoCapitalize="words"
+                testID="name-input"
+              />
 
-          {error && (
-            <Text style={styles.errorText}>{error}</Text>
-          )}
+              <Text style={styles.formLabel}>Email</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your email"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                testID="email-input"
+              />
 
-          <TouchableOpacity 
-            style={styles.submitButton}
-            onPress={handleSubmit}
-            disabled={isLoading}
-            testID="submit-button"
-          >
-            {isLoading ? (
-              <ActivityIndicator color={colors.white} size="small" />
-            ) : (
-              <Text style={styles.submitButtonText}>Complete Signup</Text>
-            )}
-          </TouchableOpacity>
+              <Text style={styles.formLabel}>Password</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Create a password"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                testID="password-input"
+              />
+
+              <Text style={styles.formLabel}>Monthly Contribution</Text>
+              <View style={styles.amountContainer}>
+                <TouchableOpacity 
+                  style={[styles.amountOption, subscriptionAmount === '1' && !isCustomAmount && styles.amountOptionSelected]}
+                  onPress={() => {
+                    setSubscriptionAmount('1');
+                    setIsCustomAmount(false);
+                  }}
+                  testID="amount-1"
+                >
+                  <Text style={[styles.amountText, subscriptionAmount === '1' && !isCustomAmount && styles.amountTextSelected]}>$1</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={[styles.amountOption, subscriptionAmount === '5' && !isCustomAmount && styles.amountOptionSelected]}
+                  onPress={() => {
+                    setSubscriptionAmount('5');
+                    setIsCustomAmount(false);
+                  }}
+                  testID="amount-5"
+                >
+                  <Text style={[styles.amountText, subscriptionAmount === '5' && !isCustomAmount && styles.amountTextSelected]}>$5</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={[styles.amountOption, subscriptionAmount === '10' && !isCustomAmount && styles.amountOptionSelected]}
+                  onPress={() => {
+                    setSubscriptionAmount('10');
+                    setIsCustomAmount(false);
+                  }}
+                  testID="amount-10"
+                >
+                  <Text style={[styles.amountText, subscriptionAmount === '10' && !isCustomAmount && styles.amountTextSelected]}>$10</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={[styles.amountOption, subscriptionAmount === '20' && !isCustomAmount && styles.amountOptionSelected]}
+                  onPress={() => {
+                    setSubscriptionAmount('20');
+                    setIsCustomAmount(false);
+                  }}
+                  testID="amount-20"
+                >
+                  <Text style={[styles.amountText, subscriptionAmount === '20' && !isCustomAmount && styles.amountTextSelected]}>$20</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={[styles.amountOption, isCustomAmount && styles.amountOptionSelected]}
+                  onPress={() => {
+                    setIsCustomAmount(true);
+                  }}
+                  testID="amount-custom"
+                >
+                  <Text style={[styles.amountText, isCustomAmount && styles.amountTextSelected]}>Other</Text>
+                </TouchableOpacity>
+              </View>
+              
+              {isCustomAmount && (
+                <View style={styles.customAmountContainer}>
+                  <Text style={styles.customAmountLabel}>Enter custom amount:</Text>
+                  <View style={styles.customAmountInputContainer}>
+                    <Text style={styles.currencySymbol}>$</Text>
+                    <TextInput
+                      style={styles.customAmountInput}
+                      placeholder="0.00"
+                      value={customAmount}
+                      onChangeText={setCustomAmount}
+                      keyboardType="decimal-pad"
+                      testID="custom-amount-input"
+                    />
+                  </View>
+                </View>
+              )}
+
+              {error && (
+                <Text style={styles.errorText}>{error}</Text>
+              )}
+
+              <TouchableOpacity 
+                style={styles.submitButton}
+                onPress={handleSubmit}
+                disabled={isLoading}
+                testID="submit-button"
+              >
+                {isLoading ? (
+                  <ActivityIndicator color={colors.white} size="small" />
+                ) : (
+                  <Text style={styles.submitButtonText}>Complete Signup</Text>
+                )}
+              </TouchableOpacity>
+            </>
+          )}
         </View>
 
         {/* Progress indicator */}
@@ -410,6 +562,76 @@ const styles = StyleSheet.create({
   },
   progressDotInactive: {
     backgroundColor: colors.neutralBorders,
+  },
+  verificationContainer: {
+    alignItems: 'center',
+    width: '100%',
+    paddingHorizontal: 16,
+  },
+  verificationIcon: {
+    marginBottom: 16,
+  },
+  verificationTitle: {
+    fontFamily: typography.fonts.semibold,
+    fontSize: typography.fontSizes.title3,
+    color: colors.primaryText,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  verificationText: {
+    fontFamily: typography.fonts.regular,
+    fontSize: typography.fontSizes.body,
+    lineHeight: typography.lineHeights.body,
+    color: colors.secondaryText,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  verificationEmail: {
+    fontFamily: typography.fonts.semibold,
+    color: colors.primaryText,
+  },
+  codeInputContainer: {
+    width: '100%',
+    marginBottom: 16,
+  },
+  verificationInput: {
+    textAlign: 'center',
+    fontSize: 24,
+    letterSpacing: 8,
+    fontFamily: typography.fonts.semibold,
+  },
+  resendContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  resendText: {
+    fontFamily: typography.fonts.regular,
+    fontSize: typography.fontSizes.small,
+    color: colors.secondaryText,
+    marginRight: 8,
+  },
+  resendButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+  },
+  resendButtonText: {
+    fontFamily: typography.fonts.medium,
+    fontSize: typography.fontSizes.small,
+    color: colors.accent,
+    textDecorationLine: 'underline',
+  },
+  verificationNote: {
+    fontFamily: typography.fonts.regular,
+    fontSize: typography.fontSizes.small,
+    color: colors.tertiaryText,
+    textAlign: 'center',
+    marginTop: 16,
+  },
+  successText: {
+    color: colors.success,
   },
   customAmountContainer: {
     width: '100%',

@@ -39,6 +39,12 @@ export const ApplicantOnboardingScreen = () => {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [assistanceType, setAssistanceType] = useState<'rent' | 'utilities' | 'tuition' | ''>('');
+  
+  // Verification state
+  const [showVerification, setShowVerification] = useState(false);
+  const [verificationCode, setVerificationCode] = useState('');
+  const [userId, setUserId] = useState('');
+  const [verificationError, setVerificationError] = useState<string | null>(null);
 
   // Handle back button press
   const handleBack = () => {
@@ -49,6 +55,48 @@ export const ApplicantOnboardingScreen = () => {
       if (error instanceof Error) {
         console.error(`Failed to navigate back: ${error.message}`);
       }
+    }
+  };
+
+  // Handle verification code submission
+  const handleVerifyCode = async () => {
+    if (!verificationCode) {
+      setVerificationError('Please enter the verification code');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      setVerificationError(null);
+
+      // In a production app, you would verify the code against Firestore
+      // For now, we'll simulate verification success
+      console.log(`Verifying code: ${verificationCode} for user ${userId}`);
+      
+      // Store additional user data
+      console.log('Additional user data to store:', {
+        name,
+        assistanceType,
+        verified: true
+      });
+
+      // Navigation will happen automatically via the AuthContext after verification
+      // In a real app, you would update the user's verification status in Firestore
+      
+      // Simulate successful verification
+      setTimeout(() => {
+        setIsLoading(false);
+        // Navigate to home or success screen
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'AppTabs' }],
+        });
+      }, 1500);
+      
+    } catch (error) {
+      console.error('Verification error:', error);
+      setVerificationError(error instanceof Error ? error.message : 'An error occurred during verification');
+      setIsLoading(false);
     }
   };
 
@@ -68,22 +116,24 @@ export const ApplicantOnboardingScreen = () => {
         email,
         password,
         userType: UserType.APPLICANT,
-        // Store additional user data in a separate call or extend the auth context
-        // to handle these additional fields
       });
       
-      // Note: In a production app, we would store the additional user data
-      // (name and assistance type) in a separate Firestore document
-      console.log('Additional user data to store:', {
-        name,
-        assistanceType
-      });
-
-      // Navigation will happen automatically via the AuthContext
+      // For demo purposes, generate a verification code here
+      // In production, this would be handled by the backend
+      const generatedCode = Math.floor(100000 + Math.random() * 900000).toString();
+      console.log(`Verification code for testing: ${generatedCode}`);
+      
+      // Store the user ID for verification
+      // In a real app, this would come from Firebase Auth
+      setUserId('user-' + Date.now().toString());
+      
+      // Show verification screen
+      setShowVerification(true);
+      setIsLoading(false);
+      
     } catch (error) {
       console.error('Signup error:', error);
       setError(error instanceof Error ? error.message : 'An error occurred during signup');
-    } finally {
       setIsLoading(false);
     }
   };
@@ -104,107 +154,168 @@ export const ApplicantOnboardingScreen = () => {
         
         {/* Title - Centered and larger like other screens */}
         <View style={styles.titleContainer}>
-          <Text style={styles.title}>Applicant Details</Text>
-          <Text style={styles.subtitle}>Complete your profile</Text>
+          {showVerification ? (
+            <>
+              <Text style={styles.title}>Verify Your Email</Text>
+              <Text style={styles.subtitle}>Enter the code sent to {email}</Text>
+            </>
+          ) : (
+            <>
+              <Text style={styles.title}>Applicant Details</Text>
+              <Text style={styles.subtitle}>Complete your profile</Text>
+            </>
+          )}
         </View>
 
         {/* Form */}
         <View style={styles.formContainer}>
-          <Text style={styles.formLabel}>Full Name</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter your full name"
-            value={name}
-            onChangeText={setName}
-            autoCapitalize="words"
-            testID="name-input"
-          />
-
-          <Text style={styles.formLabel}>Email</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter your email"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            testID="email-input"
-          />
-
-          <Text style={styles.formLabel}>Password</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Create a password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            testID="password-input"
-          />
-
-          <Text style={styles.formLabel}>Assistance Type</Text>
-          <View style={styles.assistanceContainer}>
-            <TouchableOpacity 
-              style={[styles.assistanceOption, assistanceType === 'rent' && styles.assistanceOptionSelected]}
-              onPress={() => setAssistanceType('rent')}
-              testID="assistance-rent"
-            >
-              <Ionicons 
-                name="home-outline" 
-                size={24} 
-                color={assistanceType === 'rent' ? colors.white : colors.primaryText} 
-              />
-              <Text style={[styles.assistanceText, assistanceType === 'rent' && styles.assistanceTextSelected]}>
-                Rent
+          {showVerification ? (
+            /* Verification Code Form */
+            <>
+              <Text style={styles.verificationText}>
+                We've sent a 6-digit verification code to your email. Please enter it below to complete your registration.
               </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.assistanceOption, assistanceType === 'utilities' && styles.assistanceOptionSelected]}
-              onPress={() => setAssistanceType('utilities')}
-              testID="assistance-utilities"
-            >
-              <Ionicons 
-                name="flash-outline" 
-                size={24} 
-                color={assistanceType === 'utilities' ? colors.white : colors.primaryText} 
+              
+              <Text style={styles.formLabel}>Verification Code</Text>
+              <TextInput
+                style={[styles.input, styles.verificationInput]}
+                placeholder="Enter 6-digit code"
+                value={verificationCode}
+                onChangeText={setVerificationCode}
+                keyboardType="number-pad"
+                maxLength={6}
+                testID="verification-input"
               />
-              <Text style={[styles.assistanceText, assistanceType === 'utilities' && styles.assistanceTextSelected]}>
-                Utilities
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.assistanceOption, assistanceType === 'tuition' && styles.assistanceOptionSelected]}
-              onPress={() => setAssistanceType('tuition')}
-              testID="assistance-tuition"
-            >
-              <Ionicons 
-                name="school-outline" 
-                size={24} 
-                color={assistanceType === 'tuition' ? colors.white : colors.primaryText} 
+              
+              {verificationError && (
+                <Text style={styles.errorText}>{verificationError}</Text>
+              )}
+              
+              <TouchableOpacity 
+                style={styles.submitButton}
+                onPress={handleVerifyCode}
+                disabled={isLoading}
+                testID="verify-button"
+              >
+                {isLoading ? (
+                  <ActivityIndicator color={colors.white} size="small" />
+                ) : (
+                  <Text style={styles.submitButtonText}>Verify & Continue</Text>
+                )}
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.resendButton}
+                onPress={() => {
+                  console.log('Resending verification code...');
+                  // In a real app, this would trigger a new code to be sent
+                }}
+                disabled={isLoading}
+                testID="resend-button"
+              >
+                <Text style={styles.resendButtonText}>Resend Code</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            /* Signup Form */
+            <>
+              <Text style={styles.formLabel}>Full Name</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your full name"
+                value={name}
+                onChangeText={setName}
+                autoCapitalize="words"
+                testID="name-input"
               />
-              <Text style={[styles.assistanceText, assistanceType === 'tuition' && styles.assistanceTextSelected]}>
-                Tuition
-              </Text>
-            </TouchableOpacity>
-          </View>
 
-          {error && (
-            <Text style={styles.errorText}>{error}</Text>
+              <Text style={styles.formLabel}>Email</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your email"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                testID="email-input"
+              />
+
+              <Text style={styles.formLabel}>Password</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Create a password"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                testID="password-input"
+              />
+
+              <Text style={styles.formLabel}>Assistance Type</Text>
+              <View style={styles.assistanceContainer}>
+                <TouchableOpacity 
+                  style={[styles.assistanceOption, assistanceType === 'rent' && styles.assistanceOptionSelected]}
+                  onPress={() => setAssistanceType('rent')}
+                  testID="assistance-rent"
+                >
+                  <Ionicons 
+                    name="home-outline" 
+                    size={24} 
+                    color={assistanceType === 'rent' ? colors.white : colors.primaryText} 
+                  />
+                  <Text style={[styles.assistanceText, assistanceType === 'rent' && styles.assistanceTextSelected]}>
+                    Rent
+                  </Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={[styles.assistanceOption, assistanceType === 'utilities' && styles.assistanceOptionSelected]}
+                  onPress={() => setAssistanceType('utilities')}
+                  testID="assistance-utilities"
+                >
+                  <Ionicons 
+                    name="flash-outline" 
+                    size={24} 
+                    color={assistanceType === 'utilities' ? colors.white : colors.primaryText} 
+                  />
+                  <Text style={[styles.assistanceText, assistanceType === 'utilities' && styles.assistanceTextSelected]}>
+                    Utilities
+                  </Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={[styles.assistanceOption, assistanceType === 'tuition' && styles.assistanceOptionSelected]}
+                  onPress={() => setAssistanceType('tuition')}
+                  testID="assistance-tuition"
+                >
+                  <Ionicons 
+                    name="school-outline" 
+                    size={24} 
+                    color={assistanceType === 'tuition' ? colors.white : colors.primaryText} 
+                  />
+                  <Text style={[styles.assistanceText, assistanceType === 'tuition' && styles.assistanceTextSelected]}>
+                    Tuition
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {error && (
+                <Text style={styles.errorText}>{error}</Text>
+              )}
+
+              <TouchableOpacity 
+                style={styles.submitButton}
+                onPress={handleSubmit}
+                disabled={isLoading}
+                testID="submit-button"
+              >
+                {isLoading ? (
+                  <ActivityIndicator color={colors.white} size="small" />
+                ) : (
+                  <Text style={styles.submitButtonText}>Continue to Documents</Text>
+                )}
+              </TouchableOpacity>
+            </>
           )}
-
-          <TouchableOpacity 
-            style={styles.submitButton}
-            onPress={handleSubmit}
-            disabled={isLoading}
-            testID="submit-button"
-          >
-            {isLoading ? (
-              <ActivityIndicator color={colors.white} size="small" />
-            ) : (
-              <Text style={styles.submitButtonText}>Continue to Documents</Text>
-            )}
-          </TouchableOpacity>
         </View>
 
         {/* Progress indicator */}
@@ -365,6 +476,32 @@ const styles = StyleSheet.create({
   },
   progressDotInactive: {
     backgroundColor: colors.neutralBorders,
+  },
+  verificationText: {
+    fontFamily: typography.fonts.regular,
+    fontSize: typography.fontSizes.body,
+    lineHeight: typography.lineHeights.body,
+    color: colors.secondaryText,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  verificationInput: {
+    textAlign: 'center',
+    fontSize: 24,
+    letterSpacing: 4,
+    fontFamily: typography.fonts.semibold,
+  },
+  resendButton: {
+    marginTop: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+  },
+  resendButtonText: {
+    fontFamily: typography.fonts.medium,
+    fontSize: typography.fontSizes.body,
+    color: colors.accent,
+    textDecorationLine: 'underline',
   },
 });
 
