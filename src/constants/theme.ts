@@ -19,35 +19,52 @@ export const colors = {
   info: '#404040'         // Dark gray
 };
 
+/**
+ * Assist App Font System (iOS – SF Pro)
+ * Following enterprise-grade typography system for consistent UI
+ */
 export const typography = {
+  // Primary Typeface: SF Pro (San Francisco Pro – Apple's system font)
   fonts: {
-    bold: 'SFPro-Bold', // Assuming you have these fonts in your project
-    regular: 'SFPro-Regular',
+    bold: 'SFPro-Bold',
+    semibold: 'SFPro-Semibold',
     medium: 'SFPro-Medium',
+    regular: 'SFPro-Regular',
+    monospaced: 'SFMono-Regular', // For numbers/metrics
   },
   fontSizes: {
-    headline: 24, // Average of 22-26px
-    title: 22,     // Added for section titles
-    subheading: 20,
-    body: 16,
-    button: 16,
-    label: 12,
-    input: 14,
-    caption: 12,
+    appTitle: 32, // App Title / Splash (28-32px)
+    sectionHeading: 24, // Section Headings (22-26px)
+    body: 16, // Body Text
+    button: 16, // Buttons (Primary)
+    formLabel: 14, // Form Labels
+    navItem: 14, // Tabs / Nav Items (12-14px)
+    smallNote: 12, // Small Notes / Hints
+    metrics: 20, // Numbers / Metrics (16-20px)
   },
-  fontWeights: {
-    // These might map to your font family variants if not separate font files
-    bold: 'bold', // or '700'
-    regular: 'normal', // or '400'
-    medium: '500',
+  letterSpacing: {
+    appTitle: -0.5, // App Title / Splash
+    sectionHeading: -0.5, // Section Headings
+    body: 0, // Body Text
+    button: 0, // Buttons (Primary)
+    formLabel: 0, // Form Labels
+    navItem: 0.2, // Tabs / Nav Items
+    smallNote: 0, // Small Notes / Hints
+    metrics: 0, // Numbers / Metrics
   },
   lineHeights: {
-    body: 24, // Example: 1.5x font size for body
-    headline: 32, // Example: ~1.3x font size for headline
+    appTitle: 42, // App Title / Splash (38-42px)
+    sectionHeading: 32, // Section Headings (30-34px)
+    body: 24, // Body Text
+    button: 24, // Buttons (Primary) (20-24px)
+    formLabel: 20, // Form Labels
+    navItem: 20, // Tabs / Nav Items (18-20px)
+    smallNote: 16, // Small Notes / Hints
+    metrics: 24, // Numbers / Metrics
   },
 };
 
-// Example of a common style object for reusability
+// Enterprise-grade common style object for reusability
 export const globalStyles = {
   container: {
     flex: 1,
@@ -55,24 +72,63 @@ export const globalStyles = {
     paddingHorizontal: 20,
     paddingVertical: 10,
   },
-  headlineText: {
+  // Typography styles following SF Pro system
+  appTitle: {
     fontFamily: typography.fonts.bold,
-    fontSize: typography.fontSizes.headline,
+    fontSize: typography.fontSizes.appTitle,
     color: colors.primaryText,
-    lineHeight: typography.lineHeights.headline,
+    lineHeight: typography.lineHeights.appTitle,
+    letterSpacing: typography.letterSpacing.appTitle,
+  },
+  sectionHeading: {
+    fontFamily: typography.fonts.bold,
+    fontSize: typography.fontSizes.sectionHeading,
+    color: colors.primaryText,
+    lineHeight: typography.lineHeights.sectionHeading,
+    letterSpacing: typography.letterSpacing.sectionHeading,
   },
   bodyText: {
     fontFamily: typography.fonts.regular,
     fontSize: typography.fontSizes.body,
     color: colors.primaryText,
     lineHeight: typography.lineHeights.body,
+    letterSpacing: typography.letterSpacing.body,
   },
-  labelText: {
-    fontFamily: typography.fonts.medium, // Or regular, depending on 'medium weight'
-    fontSize: typography.fontSizes.label,
-    color: colors.primaryText, // Or a more muted color like a gray
+  formLabel: {
+    fontFamily: typography.fonts.medium,
+    fontSize: typography.fontSizes.formLabel,
+    color: colors.primaryText,
+    lineHeight: typography.lineHeights.formLabel,
+    letterSpacing: typography.letterSpacing.formLabel,
   },
-  // Add more global styles as needed, e.g., for buttons, inputs
+  button: {
+    fontFamily: typography.fonts.semibold,
+    fontSize: typography.fontSizes.button,
+    color: colors.white,
+    lineHeight: typography.lineHeights.button,
+    letterSpacing: typography.letterSpacing.button,
+  },
+  navItem: {
+    fontFamily: typography.fonts.medium,
+    fontSize: typography.fontSizes.navItem,
+    color: colors.secondaryText,
+    lineHeight: typography.lineHeights.navItem,
+    letterSpacing: typography.letterSpacing.navItem,
+  },
+  smallNote: {
+    fontFamily: typography.fonts.regular,
+    fontSize: typography.fontSizes.smallNote,
+    color: colors.secondaryText,
+    lineHeight: typography.lineHeights.smallNote,
+    letterSpacing: typography.letterSpacing.smallNote,
+  },
+  metrics: {
+    fontFamily: typography.fonts.monospaced,
+    fontSize: typography.fontSizes.metrics,
+    color: colors.primaryText,
+    lineHeight: typography.lineHeights.metrics,
+    letterSpacing: typography.letterSpacing.metrics,
+  },
 };
 
 // Note: Ensure that the font families 'SFPro-Bold', 'SFPro-Regular', 'SFPro-Medium'

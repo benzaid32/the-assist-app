@@ -51,7 +51,7 @@ if (__DEV__) {
  */
 
 // Define interface for Firebase services using compat API
-interface FirebaseServices {
+export interface FirebaseServices {
   app: firebase.app.App; // Correctly typed for compat SDK
   auth: firebase.auth.Auth;
   firestore: firebase.firestore.Firestore;

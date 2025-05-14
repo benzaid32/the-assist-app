@@ -6,16 +6,18 @@ import { Ionicons } from '@expo/vector-icons';
 import { View, Text, StyleSheet } from 'react-native';
 
 // Auth Screens
-import LoginScreen from '../screens/auth/LoginScreen';
-import SignupScreen from '../screens/auth/SignupScreen';
-import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
-import VerifyEmailScreen from '../screens/auth/VerifyEmailScreen';
+import { LoginScreen } from '../screens/auth/LoginScreen';
+import { SignupScreen } from '../screens/auth/SignupScreen';
+import { ForgotPasswordScreen } from '../screens/auth/ForgotPasswordScreen';
+import { VerifyEmailScreen } from '../screens/auth/VerifyEmailScreen';
+import { SubscriberOnboardingScreen } from '../screens/auth/SubscriberOnboardingScreen';
+import { ApplicantOnboardingScreen } from '../screens/auth/ApplicantOnboardingScreen';
 
 // App Screens
 import { HomeScreen } from '../screens/app/HomeScreen';
-import ProfileScreen from '../screens/app/ProfileScreen';
-import SettingsScreen from '../screens/app/SettingsScreen';
-import DocumentUploadScreen from '../screens/app/DocumentUploadScreen';
+import { ProfileScreen } from '../screens/app/ProfileScreen';
+import { SettingsScreen } from '../screens/app/SettingsScreen';
+import { DocumentUploadScreen } from '../screens/app/DocumentUploadScreen';
 
 // Context
 import { useAuth } from '../contexts/AuthContext';
@@ -27,6 +29,8 @@ export type AuthStackParamList = {
   Signup: undefined;
   ForgotPassword: undefined;
   VerifyEmail: { email: string };
+  SubscriberOnboarding: undefined;
+  ApplicantOnboarding: undefined;
 };
 
 export type AppStackParamList = {
@@ -115,6 +119,8 @@ const AuthNavigator = () => {
       <AuthStack.Screen name="Signup" component={SignupScreen} />
       <AuthStack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
       <AuthStack.Screen name="VerifyEmail" component={VerifyEmailScreen} />
+      <AuthStack.Screen name="SubscriberOnboarding" component={SubscriberOnboardingScreen} />
+      <AuthStack.Screen name="ApplicantOnboarding" component={ApplicantOnboardingScreen} />
     </AuthStack.Navigator>
   );
 };

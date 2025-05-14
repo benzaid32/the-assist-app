@@ -12,9 +12,13 @@ import { Ionicons } from '@expo/vector-icons';
 enableScreens();
 
 // Direct imports of screens
+import { SplashScreen } from './src/screens/auth/SplashScreen';
+import { WelcomeScreen } from './src/screens/auth/WelcomeScreen';
 import { LoginScreen } from './src/screens/auth/LoginScreen';
 import { SignupScreen } from './src/screens/auth/SignupScreen';
 import { ForgotPasswordScreen } from './src/screens/auth/ForgotPasswordScreen';
+import { SubscriberOnboardingScreen } from './src/screens/auth/SubscriberOnboardingScreen';
+import { ApplicantOnboardingScreen } from './src/screens/auth/ApplicantOnboardingScreen';
 import { HomeScreen } from './src/screens/app/HomeScreen';
 import { ProfileScreen } from './src/screens/app/ProfileScreen';
 import { SettingsScreen } from './src/screens/app/SettingsScreen';
@@ -33,9 +37,13 @@ type AppTabParamList = {
 
 // Define navigation types
 export type RootStackParamList = {
+  Splash: undefined;
+  Welcome: undefined;
   Login: undefined;
   Signup: undefined;
   ForgotPassword: undefined;
+  SubscriberOnboarding: undefined; // Added for subscriber onboarding flow
+  ApplicantOnboarding: undefined; // Added for applicant onboarding flow
   AppTabs: undefined; // This will hold our bottom tab navigator
 };
 
@@ -89,14 +97,18 @@ const AppNavigator: React.FC = () => {
       screenOptions={{
         headerShown: false,
       }}
-      initialRouteName={isAuthenticated ? 'AppTabs' : 'Login'}
+      initialRouteName={isAuthenticated ? 'AppTabs' : 'Splash'}
     >
       {!isAuthenticated ? (
         // Auth screens
         <>
+          <Stack.Screen name="Splash" component={SplashScreen} />
+          <Stack.Screen name="Welcome" component={WelcomeScreen} />
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Signup" component={SignupScreen} />
           <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+          <Stack.Screen name="SubscriberOnboarding" component={SubscriberOnboardingScreen} />
+          <Stack.Screen name="ApplicantOnboarding" component={ApplicantOnboardingScreen} />
         </>
       ) : (
         // App screens with bottom tabs
