@@ -17,6 +17,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useForm } from '../../hooks/useForm';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { colors, typography, globalStyles } from '../../constants/theme';
 
 // Validation schema
 const forgotPasswordSchema = z.object({
@@ -38,7 +39,7 @@ type ForgotPasswordScreenNavigationProp = NativeStackNavigationProp<{
   Login: undefined;
   Signup: undefined;
   ForgotPassword: undefined;
-  Dashboard: undefined;
+  AppTabs: undefined; // Updated to match the new navigation structure
 }>;
 
 export const ForgotPasswordScreen = () => {
@@ -187,7 +188,7 @@ export const ForgotPasswordScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.background,
   },
   keyboardAvoidingView: {
     flex: 1,
@@ -203,15 +204,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#333333',
+    fontFamily: typography.fonts.bold,
+    fontSize: typography.fontSizes.headline,
+    color: colors.primaryText,
     marginBottom: 16,
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 16,
-    color: '#666666',
+    fontFamily: typography.fonts.regular,
+    fontSize: typography.fontSizes.body,
+    color: colors.primaryText,
     marginBottom: 32,
     textAlign: 'center',
     lineHeight: 22,
@@ -221,17 +223,17 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   errorContainer: {
-    backgroundColor: '#FFEEEE',
+    backgroundColor: '#FFEEEE', // Light red background for errors
     padding: 16,
     borderRadius: 8,
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: '#FFCCCC',
+    borderColor: colors.accent,
   },
   globalError: {
-    color: '#FF3B30',
-    fontSize: 14,
-    fontWeight: '500',
+    color: colors.accent,
+    fontSize: typography.fontSizes.label,
+    fontFamily: typography.fonts.medium,
     textAlign: 'center',
   },
   resetButton: {
@@ -242,23 +244,24 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   backButtonText: {
-    fontSize: 16,
-    color: '#007AFF',
-    fontWeight: '500',
+    fontSize: typography.fontSizes.body,
+    color: colors.accent,
+    fontFamily: typography.fonts.medium,
   },
   successContainer: {
     alignItems: 'center',
     padding: 16,
   },
   successTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#34C759',
+    fontFamily: typography.fonts.bold,
+    fontSize: typography.fontSizes.headline,
+    color: '#34C759', // Success green color, could add to theme if used elsewhere
     marginBottom: 16,
   },
   successText: {
-    fontSize: 16,
-    color: '#666666',
+    fontFamily: typography.fonts.regular,
+    fontSize: typography.fontSizes.body,
+    color: colors.primaryText,
     textAlign: 'center',
     marginBottom: 32,
     lineHeight: 22,

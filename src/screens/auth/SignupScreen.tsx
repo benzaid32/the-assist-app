@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   View, 
   Text, 
@@ -8,16 +8,17 @@ import {
   KeyboardAvoidingView, 
   Platform,
   ScrollView,
-  Keyboard
+  Keyboard,
+  TextInput
 } from 'react-native';
-import { FormInput } from '../../components/auth/FormInput';
+import { FormInput, FormInputHandle } from '../../components/auth/FormInput';
 import { Button } from '../../components/auth/Button';
 import { useAuth } from '../../contexts/AuthContext';
 import { signupSchema } from '../../lib/validation/auth';
 import { UserType } from '../../types/auth';
-import { useForm } from '../../hooks/useForm';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { colors, typography, globalStyles } from '../../constants/theme';
 
 type SignupFormData = {
   email: string;
@@ -61,66 +62,121 @@ type SignupScreenNavigationProp = NativeStackNavigationProp<{
   Login: undefined;
   Signup: undefined;
   ForgotPassword: undefined;
-  Dashboard: undefined;
+  AppTabs: undefined; // Updated to match the new navigation structure
 }>;
 
 export const SignupScreen = () => {
-  // Use navigation with simplified type
+  // Navigation handler
   const navigation = useNavigation<SignupScreenNavigationProp>();
+  
   // Auth context
   const { signup, isLoading, error, clearError } = useAuth();
 
-  // Initialize form with custom hook
-  const { 
-    values, 
-    errors, 
-    handleChange, 
-    handleSubmit,
-    resetForm 
-  } = useForm<SignupFormData, typeof signupSchema>(
-    signupSchema, 
-    { 
-      email: '', 
-      password: '', 
-      confirmPassword: '', 
-      userType: '' as UserType | '' 
-    }
-  );
+  // Form state
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [userType, setUserType] = useState<UserType | ''>('');
+  
+  // Form validation errors
+  const [formErrors, setFormErrors] = useState<{[key: string]: string}>({});
 
-  // Clear auth errors when component unmounts
-  useEffect(() => {
-    return () => {
-      if (error) clearError();
-    };
-  }, [clearError, error]);
+  // Input refs for keyboard navigation
+  const emailInputRef = useRef<FormInputHandle>(null);
+  const passwordInputRef = useRef<FormInputHandle>(null);
+  const confirmPasswordInputRef = useRef<FormInputHandle>(null);
+
+  // Clear errors when field is changed
+  const handleFieldChange = (field: string, value: string) => {
+    if (formErrors[field]) {
+      setFormErrors(prev => {
+        const newErrors = {...prev};
+        delete newErrors[field];
+        return newErrors;
+      });
+    }
+
+    // Update the appropriate state
+    switch (field) {
+      case 'email':
+        setEmail(value);
+        break;
+      case 'password':
+        setPassword(value);
+        break;
+      case 'confirmPassword':
+        setConfirmPassword(value);
+        break;
+    }
+  };
+
+  // Handle user type selection
+  const handleUserTypeSelect = (type: UserType) => {
+    setUserType(type);
+    if (formErrors.userType) {
+      setFormErrors(prev => {
+        const newErrors = {...prev};
+        delete newErrors.userType;
+        return newErrors;
+      });
+    }
+  };
+
+  // Validate form fields
+  const validateForm = () => {
+    const newErrors: {[key: string]: string} = {};
+    
+    // Email validation
+    if (!email.trim()) {
+      newErrors.email = 'Email is required';
+    } else if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(email)) {
+      newErrors.email = 'Please enter a valid email address';
+    }
+    
+    // Password validation
+    if (!password) {
+      newErrors.password = 'Password is required';
+    } else if (password.length < 8) {
+      newErrors.password = 'Password must be at least 8 characters';
+    }
+    
+    // Confirm password validation
+    if (!confirmPassword) {
+      newErrors.confirmPassword = 'Please confirm your password';
+    } else if (password !== confirmPassword) {
+      newErrors.confirmPassword = 'Passwords do not match';
+    }
+    
+    // User type validation
+    if (!userType) {
+      newErrors.userType = 'Please select a user type';
+    }
+    
+    setFormErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   // Handle signup submission
   const handleSignup = async () => {
     Keyboard.dismiss();
+    clearError();
     
-    await handleSubmit(async (formData) => {
-      try {
-        clearError();
-        if (!formData.userType) {
-          throw new Error('Please select a user type');
-        }
-        
-        await signup({ 
-          email: formData.email, 
-          password: formData.password, 
-          userType: formData.userType as UserType 
-        });
-        // Navigation will be handled by the auth state change in AuthContext
-      } catch (error) {
-        // Error is already handled in AuthContext and displayed below
-        console.error('Signup failed:', error);
-      }
-    });
-  };
-
-  // Set user type
-  const setUserType = (type: UserType) => {
-    handleChange('userType', type);
+    // Validate form
+    if (!validateForm()) {
+      return;
+    }
+    
+    try {
+      await signup({ 
+        email, 
+        password, 
+        userType: userType as UserType 
+      });
+      // Navigation handled by auth state change in AuthContext
+    } catch (error) {
+      console.error('Signup failed:', error);
+      // Error already handled in AuthContext
+    }
   };
 
   // Handle navigation to login
@@ -160,55 +216,71 @@ export const SignupScreen = () => {
 
             <View style={styles.formContainer}>
               <FormInput
+                ref={emailInputRef}
+                name="email"
                 label="Email"
-                value={values.email}
-                onChangeText={(text) => handleChange('email', text)}
+                value={email}
+                onChangeText={(text) => handleFieldChange('email', text)}
                 placeholder="Enter your email"
                 keyboardType="email-address"
                 autoCapitalize="none"
-                error={errors.email}
+                error={formErrors.email}
                 testID="signup-email"
+                returnKeyType="next"
+                blurOnSubmit={false}
+                onSubmitEditing={() => passwordInputRef.current?.focus()}
+                autoFocus={true} // Auto-focus on first field for better UX
               />
 
               <FormInput
+                ref={passwordInputRef}
+                name="password"
                 label="Password"
-                value={values.password}
-                onChangeText={(text) => handleChange('password', text)}
+                value={password}
+                onChangeText={(text) => handleFieldChange('password', text)}
                 placeholder="Create a password"
                 secureTextEntry
-                error={errors.password}
+                error={formErrors.password}
                 testID="signup-password"
+                returnKeyType="next"
+                blurOnSubmit={false}
+                onSubmitEditing={() => confirmPasswordInputRef.current?.focus()}
               />
 
               <FormInput
+                ref={confirmPasswordInputRef}
+                name="confirmPassword"
                 label="Confirm Password"
-                value={values.confirmPassword}
-                onChangeText={(text) => handleChange('confirmPassword', text)}
+                value={confirmPassword}
+                onChangeText={(text) => handleFieldChange('confirmPassword', text)}
                 placeholder="Confirm your password"
                 secureTextEntry
-                error={errors.confirmPassword}
+                error={formErrors.confirmPassword}
                 testID="signup-confirm-password"
+                returnKeyType="done"
+                blurOnSubmit={true}
+                onSubmitEditing={Keyboard.dismiss}
               />
 
               <View style={styles.userTypeContainer}>
                 <Text style={styles.userTypeLabel}>I am signing up as a:</Text>
                 
                 <RadioButton
-                  selected={values.userType === UserType.SUBSCRIBER}
-                  onSelect={() => setUserType(UserType.SUBSCRIBER)}
+                  selected={userType === UserType.SUBSCRIBER}
+                  onSelect={() => handleUserTypeSelect(UserType.SUBSCRIBER)}
                   label="Subscriber (Donor)"
                   testID="signup-subscriber-radio"
                 />
                 
                 <RadioButton
-                  selected={values.userType === UserType.APPLICANT}
-                  onSelect={() => setUserType(UserType.APPLICANT)}
+                  selected={userType === UserType.APPLICANT}
+                  onSelect={() => handleUserTypeSelect(UserType.APPLICANT)}
                   label="Applicant (Need Assistance)"
                   testID="signup-applicant-radio"
                 />
 
-                {errors.userType && (
-                  <Text style={styles.errorText}>{errors.userType}</Text>
+                {formErrors.userType && (
+                  <Text style={styles.errorText}>{formErrors.userType}</Text>
                 )}
               </View>
 
@@ -216,12 +288,7 @@ export const SignupScreen = () => {
                 title="Create Account"
                 onPress={handleSignup}
                 isLoading={isLoading}
-                disabled={
-                  !values.email || 
-                  !values.password || 
-                  !values.confirmPassword || 
-                  !values.userType
-                }
+                disabled={!email || !password || !confirmPassword || !userType}
                 style={styles.signupButton}
                 testID="signup-button"
               />
@@ -246,7 +313,7 @@ export const SignupScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.background,
   },
   keyboardAvoidingView: {
     flex: 1,
@@ -260,15 +327,16 @@ const styles = StyleSheet.create({
     paddingVertical: 40,
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#007AFF',
+    fontFamily: typography.fonts.bold,
+    fontSize: typography.fontSizes.headline,
+    color: colors.accent,
     marginBottom: 8,
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 18,
-    color: '#333333',
+    fontFamily: typography.fonts.regular,
+    fontSize: typography.fontSizes.body,
+    color: colors.primaryText,
     marginBottom: 32,
     textAlign: 'center',
   },
@@ -277,17 +345,17 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   errorContainer: {
-    backgroundColor: '#FFEEEE',
+    backgroundColor: '#FFEEEE', // Light red background for errors
     padding: 16,
     borderRadius: 8,
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: '#FFCCCC',
+    borderColor: colors.accent,
   },
   globalError: {
-    color: '#FF3B30',
-    fontSize: 14,
-    fontWeight: '500',
+    color: colors.accent,
+    fontSize: typography.fontSizes.label,
+    fontFamily: typography.fonts.medium,
     textAlign: 'center',
   },
   signupButton: {
@@ -298,10 +366,10 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   userTypeLabel: {
-    fontSize: 16,
-    fontWeight: '500',
+    fontSize: typography.fontSizes.body,
+    fontFamily: typography.fonts.medium,
     marginBottom: 12,
-    color: '#333',
+    color: colors.primaryText,
   },
   radioContainer: {
     flexDirection: 'row',
@@ -313,29 +381,30 @@ const styles = StyleSheet.create({
     width: 24,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#999999',
+    borderColor: colors.neutralBorders,
     alignItems: 'center',
     justifyContent: 'center',
   },
   radioOuterSelected: {
-    borderColor: '#007AFF',
+    borderColor: colors.accent,
   },
   radioInner: {
     height: 12,
     width: 12,
     borderRadius: 6,
-    backgroundColor: '#007AFF',
+    backgroundColor: colors.accent,
   },
   radioLabel: {
-    fontSize: 16,
+    fontFamily: typography.fonts.regular,
+    fontSize: typography.fontSizes.body,
     marginLeft: 12,
-    color: '#333',
+    color: colors.primaryText,
   },
   errorText: {
-    color: '#FF3B30',
-    fontSize: 14,
+    color: colors.accent,
+    fontSize: typography.fontSizes.label,
     marginTop: 4,
-    fontWeight: '400',
+    fontFamily: typography.fonts.regular,
   },
   loginContainer: {
     flexDirection: 'row',
@@ -344,13 +413,14 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   loginText: {
-    fontSize: 16,
-    color: '#666666',
+    fontFamily: typography.fonts.regular,
+    fontSize: typography.fontSizes.body,
+    color: colors.primaryText,
   },
   loginLinkText: {
-    fontSize: 16,
-    color: '#007AFF',
-    fontWeight: '600',
+    fontFamily: typography.fonts.medium,
+    fontSize: typography.fontSizes.body,
+    color: colors.accent,
     marginLeft: 8,
   },
 });

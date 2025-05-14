@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -10,24 +10,22 @@ import {
   ScrollView,
   Keyboard
 } from 'react-native';
-import { FormInput } from '../../components/auth/FormInput';
+import { FormInput, FormInputHandle } from '../../components/auth/FormInput';
 import { Button } from '../../components/auth/Button';
 import { useAuth } from '../../contexts/AuthContext';
-import { loginSchema, LoginFormData } from '../../lib/validation/auth';
-import { useForm } from '../../hooks/useForm';
+import { isValidEmail } from '../../lib/form/validation';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { colors, typography, globalStyles } from '../../constants/theme';
 
 /**
- * Login screen component with form validation
- * Uses custom form hook for state management
+ * Login screen component with enterprise-grade form validation
  */
-// Define local type for navigation
 type LoginScreenNavigationProp = NativeStackNavigationProp<{
   Login: undefined;
   Signup: undefined;
   ForgotPassword: undefined;
-  Dashboard: undefined;
+  AppTabs: undefined; // Updated to match the new navigation structure
 }>;
 
 export const LoginScreen = () => {
@@ -36,59 +34,114 @@ export const LoginScreen = () => {
   // Auth context
   const { login, isLoading, error, clearError } = useAuth();
 
-  // Initialize form with custom hook
-  const { 
-    values, 
-    errors, 
-    handleChange, 
-    handleSubmit, 
-    resetForm 
-  } = useForm<LoginFormData, typeof loginSchema>(
-    loginSchema, 
-    { email: '', password: '' }
-  );
+  // Form state using direct state management for better performance
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  
+  // Form validation errors
+  const [formErrors, setFormErrors] = useState<{[key: string]: string}>({});
 
-  // Clear auth errors when component unmounts
-  useEffect(() => {
-    return () => {
-      if (error) clearError();
-    };
-  }, [clearError, error]);
+  // Create refs for form fields to enable keyboard navigation
+  const emailInputRef = useRef<FormInputHandle>(null);
+  const passwordInputRef = useRef<FormInputHandle>(null);
 
-  // Handle login submission
+  // Clear errors when field is changed - prevents error messages during typing
+  const handleFieldChange = (field: string, value: string) => {
+    if (formErrors[field]) {
+      setFormErrors(prev => {
+        const newErrors = {...prev};
+        delete newErrors[field];
+        return newErrors;
+      });
+    }
+
+    // Update the appropriate state
+    switch (field) {
+      case 'email':
+        setEmail(value);
+        break;
+      case 'password':
+        setPassword(value);
+        break;
+    }
+    
+    // Clear any auth error when user starts typing
+    if (error) {
+      clearError();
+    }
+  };
+
+  // Validate form fields
+  const validateForm = (): boolean => {
+    const newErrors: {[key: string]: string} = {};
+    
+    // Email validation
+    if (!email.trim()) {
+      newErrors.email = 'Email is required';
+    } else if (!isValidEmail(email)) {
+      newErrors.email = 'Please enter a valid email address';
+    }
+    
+    // Password validation
+    if (!password) {
+      newErrors.password = 'Password is required';
+    }
+    
+    setFormErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  // Handle login submission with proper validation
   const handleLogin = async () => {
     Keyboard.dismiss();
+    clearError();
     
-    await handleSubmit(async (formData) => {
-      try {
-        clearError();
-        await login(formData);
-        // Navigation will be handled by the auth state change in AuthContext
-      } catch (error) {
-        // Error is already handled in AuthContext and displayed below
-        console.error('Login failed:', error);
-      }
-    });
+    // Validate form before submission
+    if (!validateForm()) {
+      return;
+    }
+    
+    try {
+      await login({ email, password });
+      // Navigation will be handled by the auth state change in AuthContext
+    } catch (error) {
+      // Error is already handled in AuthContext
+      console.error('Login failed:', error);
+    }
   };
 
   // Handle forgot password
-  const handleForgotPassword = () => {
-    // Use try/catch for navigation operations for more robust error handling
+  const handleNavigateToForgotPassword = () => {
     try {
       navigation.navigate('ForgotPassword');
     } catch (error) {
       console.error('Navigation error:', error);
+      // Following iOS Development Guidelines - log meaningful error messages
+      if (error instanceof Error) {
+        console.error(`Failed to navigate to ForgotPassword: ${error.message}`);
+      }
     }
   };
 
-  // Handle navigation to signup
+  // Handle navigation to signup with proper error handling
   const handleNavigateToSignup = () => {
     try {
       navigation.navigate('Signup');
     } catch (error) {
       console.error('Navigation error:', error);
+      // Following iOS Development Guidelines - log meaningful error messages
+      if (error instanceof Error) {
+        console.error(`Failed to navigate to Signup: ${error.message}`);
+      }
     }
   };
+
+  // Clear auth errors when component unmounts - follows React best practices
+  useEffect(() => {
+    return () => {
+      if (error) clearError();
+    };
+  }, [clearError, error]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -114,28 +167,39 @@ export const LoginScreen = () => {
 
             <View style={styles.formContainer}>
               <FormInput
+                ref={emailInputRef}
+                name="email"
                 label="Email"
-                value={values.email}
-                onChangeText={(text) => handleChange('email', text)}
+                value={email}
+                onChangeText={(text) => handleFieldChange('email', text)}
                 placeholder="Enter your email"
                 keyboardType="email-address"
                 autoCapitalize="none"
-                error={errors.email}
+                error={formErrors.email}
                 testID="login-email"
+                returnKeyType="next"
+                blurOnSubmit={false}
+                onSubmitEditing={() => passwordInputRef.current?.focus()}
+                autoFocus={true}
               />
 
               <FormInput
+                ref={passwordInputRef}
+                name="password"
                 label="Password"
-                value={values.password}
-                onChangeText={(text) => handleChange('password', text)}
+                value={password}
+                onChangeText={(text) => handleFieldChange('password', text)}
                 placeholder="Enter your password"
                 secureTextEntry
-                error={errors.password}
+                error={formErrors.password}
                 testID="login-password"
+                returnKeyType="done"
+                blurOnSubmit={true}
+                onSubmitEditing={() => handleLogin()}
               />
 
               <TouchableOpacity 
-                onPress={handleForgotPassword}
+                onPressOut={handleNavigateToForgotPassword}
                 style={styles.forgotPasswordContainer}
                 testID="forgot-password-button"
               >
@@ -146,7 +210,7 @@ export const LoginScreen = () => {
                 title="Sign In"
                 onPress={handleLogin}
                 isLoading={isLoading}
-                disabled={!values.email || !values.password}
+                disabled={!email || !password}
                 style={styles.loginButton}
                 testID="login-button"
               />
@@ -171,7 +235,7 @@ export const LoginScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.background,
   },
   keyboardAvoidingView: {
     flex: 1,
@@ -187,15 +251,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#007AFF',
+    fontFamily: typography.fonts.bold,
+    fontSize: typography.fontSizes.headline,
+    color: colors.accent, // Using accent color from theme
     marginBottom: 8,
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 18,
-    color: '#333333',
+    fontFamily: typography.fonts.regular,
+    fontSize: typography.fontSizes.body,
+    color: colors.primaryText,
     marginBottom: 32,
     textAlign: 'center',
   },
@@ -204,17 +269,17 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   errorContainer: {
-    backgroundColor: '#FFEEEE',
+    backgroundColor: '#FFEEEE', // Light red background for errors
     padding: 16,
     borderRadius: 8,
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: '#FFCCCC',
+    borderColor: colors.accent, // Using accent for error border
   },
   globalError: {
-    color: '#FF3B30',
-    fontSize: 14,
-    fontWeight: '500',
+    color: colors.accent, // Using accent color for errors
+    fontSize: typography.fontSizes.label,
+    fontFamily: typography.fonts.medium,
     textAlign: 'center',
   },
   loginButton: {
@@ -225,9 +290,9 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   forgotPasswordText: {
-    fontSize: 14,
-    color: '#007AFF',
-    fontWeight: '500',
+    fontSize: typography.fontSizes.label,
+    color: colors.accent,
+    fontFamily: typography.fonts.medium,
   },
   signupContainer: {
     flexDirection: 'row',
@@ -236,13 +301,14 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   signupText: {
-    fontSize: 16,
-    color: '#666666',
+    fontFamily: typography.fonts.regular,
+    fontSize: typography.fontSizes.body,
+    color: colors.primaryText,
   },
   signupLinkText: {
-    fontSize: 16,
-    color: '#007AFF',
-    fontWeight: '600',
+    fontFamily: typography.fonts.medium,
+    fontSize: typography.fontSizes.body,
+    color: colors.accent,
     marginLeft: 8,
   },
 });

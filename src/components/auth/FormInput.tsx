@@ -1,79 +1,173 @@
-import React, { useState } from 'react';
-import { TextInput, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { forwardRef, useRef, useImperativeHandle, useState } from 'react';
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  StyleSheet, 
+  TouchableOpacity, 
+  ReturnKeyTypeOptions,
+  Platform,
+  StyleProp,
+  ViewStyle
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { colors, typography } from '../../constants/theme';
+
+export interface FormInputHandle {
+  focus: () => void;
+  blur: () => void;
+  clear: () => void;
+}
 
 interface FormInputProps {
+  // Basic props
+  name: string;
   label: string;
   value: string;
   onChangeText: (text: string) => void;
+  
+  // Input configuration
   placeholder?: string;
   secureTextEntry?: boolean;
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
-  keyboardType?: 'default' | 'email-address' | 'numeric' | 'phone-pad';
+  keyboardType?: 'default' | 'email-address' | 'numeric' | 'phone-pad' | 'visible-password';
+  
+  // Validation and error handling
   error?: string;
+  touched?: boolean;
+  
+  // Keyboard and focus management
+  returnKeyType?: ReturnKeyTypeOptions;
+  blurOnSubmit?: boolean;
+  onSubmitEditing?: () => void;
+  editable?: boolean;
+  autoFocus?: boolean;
+  
+  // Optional styling and testing
   testID?: string;
+  containerStyle?: StyleProp<ViewStyle>;
 }
 
 /**
- * Reusable form input component with error handling
+ * Enhanced form input component with robust keyboard handling
+ * and focus management optimized for React Native forms
  */
-export const FormInput: React.FC<FormInputProps> = ({
-  label,
-  value,
-  onChangeText,
-  placeholder,
-  secureTextEntry = false,
-  autoCapitalize = 'none',
-  keyboardType = 'default',
-  error,
-  testID,
-}) => {
+export const FormInput = forwardRef<FormInputHandle, FormInputProps>((
+  {
+    name,
+    label,
+    value,
+    onChangeText,
+    placeholder,
+    secureTextEntry = false,
+    autoCapitalize = 'none',
+    keyboardType = 'default',
+    error,
+    touched,
+    returnKeyType = 'next',
+    blurOnSubmit = false,
+    onSubmitEditing,
+    editable = true,
+    autoFocus = false,
+    testID,
+    containerStyle,
+  },
+  ref
+) => {
+  // Local state
   const [isFocused, setIsFocused] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(!secureTextEntry);
-
+  
+  // Internal input reference for imperative control
+  const inputRef = useRef<TextInput>(null);
+  
+  // Expose methods to parent component
+  useImperativeHandle(ref, () => ({
+    focus: () => {
+      inputRef.current?.focus();
+    },
+    blur: () => {
+      inputRef.current?.blur();
+    },
+    clear: () => {
+      inputRef.current?.clear();
+    }
+  }));
+  
+  // Toggle password visibility
   const togglePasswordVisibility = () => {
-    setIsPasswordVisible((prev) => !prev);
+    setIsPasswordVisible(prev => !prev);
+  };
+  
+  // Handle focus events with proper state updates
+  const handleFocus = () => {
+    setIsFocused(true);
+  };
+  
+  const handleBlur = () => {
+    setIsFocused(false);
   };
 
   return (
-    <View style={styles.container} testID={testID}>
+    <View style={[styles.container, containerStyle]} testID={testID}>
       <Text style={styles.label}>{label}</Text>
+      
       <View style={[
         styles.inputContainer,
         isFocused && styles.inputFocused,
-        error ? styles.inputError : null
+        error && styles.inputError
       ]}>
         <TextInput
+          ref={inputRef}
           style={styles.input}
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
+          placeholderTextColor="#AAAAAA"
           secureTextEntry={secureTextEntry && !isPasswordVisible}
           autoCapitalize={autoCapitalize}
           keyboardType={keyboardType}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
-          placeholderTextColor="#A0A0A0"
+          returnKeyType={returnKeyType}
+          blurOnSubmit={blurOnSubmit}
+          onSubmitEditing={onSubmitEditing}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          editable={editable}
+          autoFocus={autoFocus}
           testID={`${testID}-input`}
+          // Important iOS-specific props for better keyboard handling
+          clearButtonMode="while-editing" 
+          enablesReturnKeyAutomatically
+          // Important Android-specific props
+          textContentType={secureTextEntry ? 'password' : 'emailAddress'}
+          importantForAutofill="yes"
+          autoComplete={secureTextEntry ? 'password' : 'email'}
         />
+        
         {secureTextEntry && (
           <TouchableOpacity 
-            onPress={togglePasswordVisibility} 
-            style={styles.iconButton}
+            style={styles.iconContainer}
+            onPress={togglePasswordVisibility}
             testID={`${testID}-toggle-visibility`}
           >
             <Ionicons 
-              name={isPasswordVisible ? 'eye-off' : 'eye'} 
+              name={isPasswordVisible ? 'eye-off-outline' : 'eye-outline'} 
               size={24} 
-              color="#757575" 
+              color={colors.primaryText}
             />
           </TouchableOpacity>
         )}
       </View>
-      {error ? <Text style={styles.errorText} testID={`${testID}-error`}>{error}</Text> : null}
+      
+      {error ? (
+        <Text style={styles.errorText} testID={`${testID}-error`}>{error}</Text>
+      ) : null}
     </View>
   );
-};
+});
+
+// Specific component name for better debugging
+FormInput.displayName = 'FormInput';
 
 const styles = StyleSheet.create({
   container: {
@@ -81,45 +175,44 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   label: {
-    fontSize: 16,
-    fontWeight: '500',
+    fontFamily: typography.fonts.medium,
+    fontSize: typography.fontSizes.label,
+    color: colors.primaryText,
     marginBottom: 8,
-    color: '#333',
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: colors.neutralBorders,
     borderRadius: 8,
-    backgroundColor: '#FFF',
+    backgroundColor: colors.background,
+    overflow: 'hidden',
   },
   inputFocused: {
-    borderColor: '#007AFF',
-    shadowColor: '#007AFF',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 1,
+    borderColor: colors.accent,
   },
   inputError: {
-    borderColor: '#FF3B30',
+    borderColor: colors.accent,
   },
   input: {
     flex: 1,
-    height: 48,
     paddingHorizontal: 16,
-    fontSize: 16,
-    color: '#333',
+    paddingVertical: 14,
+    fontFamily: typography.fonts.regular,
+    fontSize: typography.fontSizes.body,
+    color: colors.primaryText,
   },
-  iconButton: {
-    padding: 8,
-    marginRight: 8,
+  iconContainer: {
+    padding: 10,
   },
   errorText: {
-    color: '#FF3B30',
-    fontSize: 14,
+    fontFamily: typography.fonts.regular,
+    fontSize: typography.fontSizes.label,
+    color: colors.accent,
     marginTop: 4,
-    fontWeight: '400',
   },
+  neutralTextLight: {
+    color: "#AAAAAA"
+  }
 });
