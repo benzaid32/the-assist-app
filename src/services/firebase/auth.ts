@@ -17,6 +17,28 @@ export const signIn = async (auth: firebase.auth.Auth, firestore: firebase.fires
     if (!userCredential.user) {
       throw new Error('Authentication succeeded but no user was returned');
     }
+    
+    // Check if email is verified
+    if (!userCredential.user.emailVerified) {
+      // Send another verification email if not verified
+      try {
+        await userCredential.user.sendEmailVerification({
+          url: process.env.REACT_APP_CONFIRMATION_EMAIL_REDIRECT || window.location.origin,
+          handleCodeInApp: true,
+        });
+        console.log('Verification email re-sent successfully');
+        
+        // Sign out the user since they haven't verified their email
+        await auth.signOut();
+        throw new Error('Please verify your email before logging in. A new verification email has been sent.');
+      } catch (verificationError) {
+        console.error('Failed to re-send verification email:', verificationError);
+        await auth.signOut();
+        throw new Error('Please verify your email before logging in. If you did not receive a verification email, please try again or contact support.');
+      }
+    }
+    
+    // Proceed with fetching user data after email verification check
     const user = await getUserData(firestore, userCredential.user.uid);
     
     if (!user) {
@@ -28,7 +50,9 @@ export const signIn = async (auth: firebase.auth.Auth, firestore: firebase.fires
     console.error('Sign in error:', error);
     
     if (error instanceof Error) {
-      const errorMessage = error.message.toLowerCase(); 
+      const errorMessage = error.message.toLowerCase();
+      
+      // Handle specific Firebase auth errors
       if (errorMessage.includes('auth/user-not-found') || errorMessage.includes('auth/invalid-email')) {
         throw new Error('No account found with this email. Please check your email or sign up.');
       } else if (errorMessage.includes('auth/wrong-password')) {
@@ -37,7 +61,12 @@ export const signIn = async (auth: firebase.auth.Auth, firestore: firebase.fires
         throw new Error('Too many failed login attempts. Please try again later or reset your password.');
       } else if (errorMessage.includes('auth/network-request-failed')) {
         throw new Error('Network error. Please check your internet connection and try again.');
+      } else if (errorMessage.includes('auth/email-not-verified') || errorMessage.includes('please verify your email')) {
+        // Custom error for unverified email - maintain the original message
+        throw error;
       }
+      
+      // Default error handling
       throw new Error(error.message || 'Sign in failed. Please try again.');
     }
     
@@ -238,6 +267,45 @@ export const getUserData = async (firestore: firebase.firestore.Firestore, userI
  * Sends a password reset email
  * @param auth Firebase Auth instance
  * @param email User email
+ */
+/**
+ * Resends verification email to the currently signed in user
+ * @param auth Firebase Auth instance
+ * @returns Promise resolving to void
+ */
+export const resendVerificationEmail = async (auth: firebase.auth.Auth): Promise<void> => {
+  try {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      throw new Error('No user is currently signed in');
+    }
+    
+    await currentUser.sendEmailVerification({
+      url: process.env.REACT_APP_CONFIRMATION_EMAIL_REDIRECT || window.location.origin,
+      handleCodeInApp: true,
+    });
+    
+    console.log('Verification email sent successfully');
+    return;
+  } catch (error) {
+    console.error('Failed to send verification email:', error);
+    
+    if (error instanceof Error) {
+      if (error.message.toLowerCase().includes('auth/too-many-requests')) {
+        throw new Error('Too many verification emails sent recently. Please try again later.');
+      }
+      throw new Error(error.message || 'Failed to send verification email. Please try again later.');
+    }
+    
+    throw new Error('Failed to send verification email due to an unexpected error.');
+  }
+};
+
+/**
+ * Sends a password reset email
+ * @param auth Firebase Auth instance
+ * @param email User email
+ * @returns Promise resolving to void
  */
 export const resetPassword = async (auth: firebase.auth.Auth, email: string): Promise<void> => {
   try {

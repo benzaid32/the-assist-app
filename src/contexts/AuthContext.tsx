@@ -2,8 +2,11 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/auth';
 import 'firebase/compat/firestore';
+import 'firebase/compat/functions';
 import { getUserData, signIn, signUp, signOut, resetPassword } from '../services/firebase/auth';
+import { sendVerificationEmail as sendVerificationEmailFn, sendPasswordResetEmail as sendPasswordResetEmailFn } from '../services/firebase/emailFunctions';
 import { AuthState, User, LoginCredentials, SignupCredentials } from '../types/auth';
+import { logError, logInfo } from '../services/logging';
 
 // Initial auth state
 const initialAuthState: AuthState = {
@@ -19,6 +22,8 @@ interface AuthContextType extends AuthState {
   signup: (credentials: SignupCredentials) => Promise<void>;
   logout: () => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
+  sendVerificationEmail: () => Promise<void>;
+  isEmailVerified: () => boolean;
   clearError: () => void;
 }
 
@@ -109,13 +114,22 @@ export const AuthProvider = ({ children, auth, firestore }: AuthProviderProps) =
     }
   };
 
-  // Handle password reset
+  // Handle password reset using Cloud Function
   const sendPasswordReset = async (email: string) => {
     try {
       setState(prev => ({ ...prev, isLoading: true, error: null }));
-      await resetPassword(auth, email); 
+      
+      // Get Firebase Functions instance
+      const functions = firebase.functions();
+      
+      // Call the Cloud Function to send password reset email
+      await sendPasswordResetEmailFn(functions, email);
+      
+      logInfo('Password reset email sent successfully');
       setState(prev => ({ ...prev, isLoading: false }));
     } catch (error) {
+      logError('Failed to send password reset email', error);
+      
       setState(prev => ({
         ...prev,
         isLoading: false,
@@ -123,6 +137,36 @@ export const AuthProvider = ({ children, auth, firestore }: AuthProviderProps) =
       }));
       throw error;
     }
+  };
+  
+  // Send verification email to current user using Cloud Function
+  const sendVerificationEmail = async () => {
+    try {
+      setState(prev => ({ ...prev, isLoading: true, error: null }));
+      
+      // Get Firebase Functions instance
+      const functions = firebase.functions();
+      
+      // Call the Cloud Function to send verification email
+      await sendVerificationEmailFn(functions);
+      
+      logInfo('Verification email sent successfully');
+      setState(prev => ({ ...prev, isLoading: false }));
+    } catch (error) {
+      logError('Failed to send verification email', error);
+      
+      setState(prev => ({
+        ...prev,
+        isLoading: false,
+        error: error instanceof Error ? error.message : 'An unknown error occurred',
+      }));
+      throw error;
+    }
+  };
+  
+  // Check if current user's email is verified
+  const isEmailVerified = (): boolean => {
+    return auth.currentUser?.emailVerified ?? false;
   };
 
   // Listen for auth state changes with enhanced error handling
@@ -205,6 +249,8 @@ export const AuthProvider = ({ children, auth, firestore }: AuthProviderProps) =
     signup,
     logout,
     sendPasswordReset,
+    sendVerificationEmail,
+    isEmailVerified,
     clearError,
   };
 
