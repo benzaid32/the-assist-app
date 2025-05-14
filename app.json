@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "TheAssistApp",
+    "name": "The Assist App",
     "slug": "TheAssistApp",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -13,17 +13,39 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "org.theassistapp.assistapp"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
+      "package": "org.theassistapp.assistapp",
       "edgeToEdgeEnabled": true
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-document-picker",
+        {
+          "iCloudContainerEnvironment": "Production"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow $(PRODUCT_NAME) to access your photos for ID verification.",
+          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera for document capture."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "assist-app-project"
+      }
     }
   }
 }
