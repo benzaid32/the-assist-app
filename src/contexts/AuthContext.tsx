@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { onAuthStateChanged, Auth } from 'firebase/auth';
-import { Firestore } from 'firebase/firestore'; 
+import firebase from 'firebase/compat/app';
+import 'firebase/compat/auth';
+import 'firebase/compat/firestore';
 import { getUserData, signIn, signUp, signOut, resetPassword } from '../services/firebase/auth';
 import { AuthState, User, LoginCredentials, SignupCredentials } from '../types/auth';
 
@@ -27,8 +28,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // Provider props interface
 interface AuthProviderProps {
   children: ReactNode;
-  auth: Auth; 
-  firestore: Firestore; 
+  auth: firebase.auth.Auth; 
+  firestore: firebase.firestore.Firestore; 
 }
 
 /**
@@ -126,9 +127,9 @@ export const AuthProvider = ({ children, auth, firestore }: AuthProviderProps) =
 
   // Listen for auth state changes with enhanced error handling
   useEffect(() => {
-    let isMounted = true; 
+    let isMounted = true;
     
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
       try {
         if (!isMounted) return; 
         

@@ -1,14 +1,6 @@
-import { 
-  createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword,
-  signOut as firebaseSignOut, 
-  UserCredential,
-  sendPasswordResetEmail,
-  EmailAuthProvider,
-  reauthenticateWithCredential,
-  Auth 
-} from 'firebase/auth';
-import { doc, setDoc, getDoc, serverTimestamp, Firestore } from 'firebase/firestore';
+import firebase from 'firebase/compat/app';
+import 'firebase/compat/auth';
+import 'firebase/compat/firestore';
 import { User, UserType, LoginCredentials, SignupCredentials } from '../../types/auth';
 
 /**
@@ -18,10 +10,13 @@ import { User, UserType, LoginCredentials, SignupCredentials } from '../../types
  * @param credentials Login credentials
  * @returns Promise resolving to user data
  */
-export const signIn = async (auth: Auth, firestore: Firestore, credentials: LoginCredentials): Promise<User> => {
+export const signIn = async (auth: firebase.auth.Auth, firestore: firebase.firestore.Firestore, credentials: LoginCredentials): Promise<User> => {
   try {
     const { email, password } = credentials;
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    const userCredential = await auth.signInWithEmailAndPassword(email, password);
+    if (!userCredential.user) {
+      throw new Error('Authentication succeeded but no user was returned');
+    }
     const user = await getUserData(firestore, userCredential.user.uid);
     
     if (!user) {
@@ -57,11 +52,14 @@ export const signIn = async (auth: Auth, firestore: Firestore, credentials: Logi
  * @param credentials Signup credentials
  * @returns Promise resolving to user data
  */
-export const signUp = async (auth: Auth, firestore: Firestore, credentials: SignupCredentials): Promise<User> => {
+export const signUp = async (auth: firebase.auth.Auth, firestore: firebase.firestore.Firestore, credentials: SignupCredentials): Promise<User> => {
   try {
     const { email, password, userType } = credentials;
     
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+    if (!userCredential.user) {
+      throw new Error('Account created but no user was returned');
+    }
     const { uid } = userCredential.user;
     
     const userData: User = {
@@ -72,9 +70,9 @@ export const signUp = async (auth: Auth, firestore: Firestore, credentials: Sign
       profileCompleted: false
     };
     
-    await setDoc(doc(firestore, 'users', uid), {
+    await firestore.collection('users').doc(uid).set({
       ...userData,
-      createdAt: serverTimestamp() 
+      createdAt: firebase.firestore.FieldValue.serverTimestamp() 
     });
     
     return userData;
@@ -103,9 +101,9 @@ export const signUp = async (auth: Auth, firestore: Firestore, credentials: Sign
  * Signs out the current user
  * @param auth Firebase Auth instance
  */
-export const signOut = async (auth: Auth): Promise<void> => {
+export const signOut = async (auth: firebase.auth.Auth): Promise<void> => {
   try {
-    await firebaseSignOut(auth);
+    await auth.signOut();
   } catch (error) {
     console.error('Sign out error:', error);
     if (error instanceof Error && error.message.includes('auth/network-request-failed')){
@@ -121,12 +119,12 @@ export const signOut = async (auth: Auth): Promise<void> => {
  * @param userId User ID
  * @returns Promise resolving to user data
  */
-export const getUserData = async (firestore: Firestore, userId: string): Promise<User | null> => {
+export const getUserData = async (firestore: firebase.firestore.Firestore, userId: string): Promise<User | null> => {
   try {
-    const userDocRef = doc(firestore, 'users', userId);
-    const userDoc = await getDoc(userDocRef);
+    const userDocRef = firestore.collection('users').doc(userId);
+    const userDoc = await userDocRef.get();
     
-    if (userDoc.exists()) {
+    if (userDoc.exists) {
       const userData = userDoc.data() as Omit<User, 'createdAt'> & { createdAt: any }; 
       return {
         ...userData,
@@ -148,9 +146,9 @@ export const getUserData = async (firestore: Firestore, userId: string): Promise
  * @param auth Firebase Auth instance
  * @param email User email
  */
-export const resetPassword = async (auth: Auth, email: string): Promise<void> => {
+export const resetPassword = async (auth: firebase.auth.Auth, email: string): Promise<void> => {
   try {
-    await sendPasswordResetEmail(auth, email);
+    await auth.sendPasswordResetEmail(email);
   } catch (error) {
     console.error('Password reset error:', error);
     if (error instanceof Error) {
