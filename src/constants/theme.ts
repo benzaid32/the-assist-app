@@ -27,6 +27,7 @@ export const typography = {
   },
   fontSizes: {
     headline: 24, // Average of 22-26px
+    title: 22,     // Added for section titles
     subheading: 20,
     body: 16,
     button: 16,

@@ -7,6 +7,7 @@ export enum UserType {
 export interface User {
   userId: string;
   email: string;
+  displayName?: string;
   userType: UserType;
   createdAt: Date;
   profileCompleted: boolean;

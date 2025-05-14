@@ -1,0 +1,72 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Basic security functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && request.auth.token.role == 'admin';
+    }
+
+    function isApplicant() {
+      return isAuthenticated() && request.auth.token.userType == 'applicant';
+    }
+
+    function isValidDocumentType() {
+      return request.resource.contentType.matches('image/.*') || 
+             request.resource.contentType == 'application/pdf';
+    }
+
+    function isUnderSizeLimit() {
+      return request.resource.size <= 20 * 1024 * 1024; // 20MB limit
+    }
+
+    // Document upload rules
+    match /uploads/{userId}/{category}/{documentId} {
+      // Allow applicants to upload their own documents
+      allow create: if isAuthenticated() && 
+                     request.auth.uid == userId && 
+                     isApplicant() && 
+                     isValidDocumentType() && 
+                     isUnderSizeLimit() && 
+                     (category in ['ids', 'bills', 'lease', 'tuition']);
+
+      // Allow users to read their own documents
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+      
+      // Allow admins to read all documents
+      allow read: if isAdmin();
+      
+      // Only admins can delete documents
+      allow delete: if isAdmin();
+      
+      // No updates allowed
+      allow update: if false;
+    }
+
+    // Public assets accessible to authenticated users
+    match /public/{assetPath=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Quarantine for suspicious documents
+    match /quarantine/{documentId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // Archive for compliance
+    match /archives/{year}/{month}/{documentId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // Default deny
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

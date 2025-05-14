@@ -79,7 +79,7 @@ const EMAIL_TEMPLATES = {
     <body>
       <div class="container">
         <div class="header">
-          <img src="https://raw.githubusercontent.com/bendlala/TheAssistApp/main/src/assets/images/logo.png" alt="The Assist App" class="logo">
+          <img src="https://raw.githubusercontent.com/benzaid32/the-assist-app/main/src/assets/images/logo.png" alt="The Assist App" class="logo">
           <h1>Verify Your Email</h1>
         </div>
         <div class="content">
@@ -164,7 +164,7 @@ const EMAIL_TEMPLATES = {
     <body>
       <div class="container">
         <div class="header">
-          <img src="https://raw.githubusercontent.com/bendlala/TheAssistApp/main/src/assets/images/logo.png" alt="The Assist App" class="logo">
+          <img src="https://raw.githubusercontent.com/benzaid32/the-assist-app/main/src/assets/images/logo.png" alt="The Assist App" class="logo">
           <h1>Reset Your Password</h1>
         </div>
         <div class="content">
