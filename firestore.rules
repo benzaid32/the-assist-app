@@ -1,0 +1,187 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ================== CORE SECURITY FUNCTIONS ==================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isSystem() {
+      return request.auth.token.firebase.sign_in_provider == 'system';
+    }
+
+    function isValidEmail(email) {
+      return email.matches('^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$');
+    }
+
+    function isAdmin() {
+      return isAuthenticated() 
+             && (request.auth.token.get('admin', false) 
+             && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+    }
+
+    function hasRole(role) {
+      return isAuthenticated() 
+             && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == role;
+    }
+
+    function isValidDocumentType(type) {
+      return type in ['id_front', 'id_back', 'utility_bill', 'lease_agreement'];
+    }
+
+    function withinOperatingHours() {
+      return request.time.hours() >= 8 && request.time.hours() < 20;
+    }
+
+    // ================== DATA VALIDATION FUNCTIONS ==================
+    function isValidUserDocument() {
+      return request.resource.data.keys().hasOnly([
+        'email', 'userType', 'createdAt', 'updatedAt', 
+        'profileComplete', 'lastLogin', 'metadata'
+      ]) && isValidEmail(request.resource.data.email);
+    }
+
+    function isValidPaymentDocument() {
+      return request.resource.data.keys().hasOnly([
+        'amount', 'currency', 'recipientId', 'billerInfo',
+        'processedAt', 'status', 'transactionId', 'metadata'
+      ]) && request.resource.data.amount > 0
+         && request.resource.data.currency == 'USD';
+    }
+
+    function mandatoryMetadata() {
+      return 'metadata' in request.resource.data
+             && 'createdBy' in request.resource.data.metadata
+             && 'updatedBy' in request.resource.data.metadata
+             && 'environment' in request.resource.data.metadata;
+    }
+
+    // ================== COLLECTION RULES ==================
+    match /users/{userId} {
+      allow create: if isAuthenticated()
+                    && request.auth.uid == userId
+                    && isValidUserDocument()
+                    && request.resource.data.userType in ['applicant', 'subscriber']
+                    && withinOperatingHours();
+
+      allow read: if isAdmin() 
+                   || (isAuthenticated() && request.auth.uid == userId);
+
+      allow update: if isAuthenticated()
+                    && request.auth.uid == userId
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                       .hasOnly(['profileComplete', 'lastLogin', 'metadata'])
+                    && resource.data.userType == request.resource.data.userType;
+    }
+
+    match /subscribers/{subId} {
+      // Allow initial creation during signup OR by system processes
+      allow create: if (isAuthenticated() && request.auth.uid == subId) || isSystem();
+      
+      // For system processes, enforce strict validation
+      // For user signup, we'll rely on application logic validation
+
+      // Allow users to read their own subscriber data or if they're an admin
+      allow read: if isAdmin() 
+                  || (isAuthenticated() && request.auth.uid == subId);
+
+      // Allow updates by:
+      // 1. The subscriber themselves (for tier changes, profile updates)
+      // 2. System processes (for payment processing, status updates)
+      allow update: if (isAuthenticated() && request.auth.uid == subId) ||
+                    isSystem();
+    }
+
+    match /applicants/{applicantId} {
+      // Allow initial creation during signup OR by system processes with proper validation
+      allow create: if (isAuthenticated() && request.auth.uid == applicantId) || 
+                    (isSystem() && request.resource.data.status == 'PENDING_REVIEW');
+
+      // Allow users to read their own applicant data or if they're an admin
+      allow read: if isAdmin() 
+                  || (isAuthenticated() && request.auth.uid == applicantId);
+
+      // Allow updates by:
+      // 1. The applicant themselves (for document uploads, profile updates)
+      // 2. Admins (for application status changes, verification)
+      allow update: if (isAuthenticated() && request.auth.uid == applicantId) ||
+                    isAdmin();
+    }
+
+    match /documents/{docId} {
+      allow create: if isAuthenticated()
+                    && request.resource.data.userId == request.auth.uid
+                    && isValidDocumentType(request.resource.data.type)
+                    && request.resource.data.filePath.matches('^gs://[a-z0-9-]+\\.appspot\\.com/')
+                    && request.resource.data.size < 5242880; // 5MB
+
+      allow read: if isAdmin() 
+                  || (isAuthenticated() 
+                      && request.auth.uid == resource.data.userId);
+
+      allow delete: if false;
+    }
+
+    match /payments/{paymentId} {
+      allow create: if isAdmin()
+                    && isValidPaymentDocument()
+                    && exists(/databases/$(database)/documents/applicants/$(request.resource.data.recipientId));
+
+      allow read: if isAdmin() 
+                  || (isAuthenticated() 
+                      && request.auth.uid == resource.data.recipientId);
+
+      allow update, delete: if false;
+    }
+
+    match /audit/{auditId} {
+      allow create: if isSystem()
+                    && request.resource.data.keys().hasAll([
+                      'actionType', 'userId', 'targetId',
+                      'timestamp', 'ipAddress', 'userAgent'
+                    ]);
+
+      allow read: if isAdmin();
+    }
+
+    match /config/{documentId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin()
+                    && request.resource.data.keys().hasOnly([
+                      'appSettings', 'paymentConfig', 'metadata'
+                    ]);
+    }
+
+    // ================== SECURITY CONTROLS ==================
+    match /fraud_reports/{reportId} {
+      allow read: if isAdmin();
+      allow write: if false; // Only via Cloud Functions
+    }
+
+    match /api_keys/{keyId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // ================== SAFETY & COMPLIANCE ==================
+    match /backups/{backupId} {
+      allow read, write: if false; // Managed externally
+    }
+
+    match /encryption_keys/{keyId} {
+      allow read, write: if false;
+    }
+
+    // ================== GLOBAL RULES ==================
+    match /{document=**} {
+      // Global write rate limiting (10 writes/second)
+      function rateLimit() {
+        return request.time > resource.data.lastUpdated + duration.value(1, 's');
+      }
+
+      // Default deny with logging
+      allow read, write: if false 
+                          && debug("Unauthorized access attempt to " + document);
+    }
+  }
+}

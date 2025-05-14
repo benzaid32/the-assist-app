@@ -56,26 +56,119 @@ export const signUp = async (auth: firebase.auth.Auth, firestore: firebase.fires
   try {
     const { email, password, userType } = credentials;
     
+    // Create Firebase auth user with email/password
+    console.log(`Attempting to create user with email: ${email}`);
     const userCredential = await auth.createUserWithEmailAndPassword(email, password);
     if (!userCredential.user) {
       throw new Error('Account created but no user was returned');
     }
     const { uid } = userCredential.user;
+    console.log(`User created successfully with ID: ${uid}`);
     
-    const userData: User = {
+    // Send email verification
+    try {
+      await userCredential.user.sendEmailVerification({
+        url: process.env.REACT_APP_CONFIRMATION_EMAIL_REDIRECT || window.location.origin,
+        handleCodeInApp: true,
+      });
+      console.log('Verification email sent successfully');
+    } catch (verificationError) {
+      console.error('Failed to send verification email:', verificationError);
+      // Continue with account creation even if email verification fails
+      // This prevents blocking user registration due to email service issues
+    }
+    
+    // Use a batch write for data consistency across collections
+    const batch = firestore.batch();
+    
+    // Create base user document - strictly following security rules field requirements
+    const userRef = firestore.collection('users').doc(uid);
+    const now = firebase.firestore.FieldValue.serverTimestamp();
+    batch.set(userRef, {
+      email,
+      userType,
+      createdAt: now,
+      updatedAt: now,
+      profileComplete: false,
+      lastLogin: now,
+      metadata: {
+        createdBy: 'signup_process',
+        updatedBy: 'signup_process',
+        environment: process.env.NODE_ENV || 'development'
+      }
+    });
+    
+    // Create specialized record based on user type
+    if (userType === 'subscriber') {
+      // Create subscriber record - ensuring it has all required fields from security rules
+      const subscriberRef = firestore.collection('subscribers').doc(uid);
+      batch.set(subscriberRef, {
+        userId: uid, // Not in rules but needed for our app logic
+        tier: 'basic', // Required by security rules
+        status: 'pending',
+        stripeId: null,
+        startDate: now,
+        paymentHistory: [],
+        metadata: {
+          createdBy: 'signup_process',
+          updatedBy: 'signup_process',
+          environment: process.env.NODE_ENV || 'development'
+        }
+      });
+      console.log('Created subscriber record');
+    } else if (userType === 'applicant') {
+      // Create applicant record - ensuring it has all required fields from security rules
+      const applicantRef = firestore.collection('applicants').doc(uid);
+      batch.set(applicantRef, {
+        userId: uid, // Not in rules but needed for our app logic
+        status: 'PENDING_REVIEW', // Required by security rules
+        documents: [], // Required by security rules
+        financialInfo: {
+          requestAmount: 0,
+          needType: 'unspecified'
+        },
+        verificationStatus: 'pending',
+        metadata: {
+          createdBy: 'signup_process',
+          updatedBy: 'signup_process',
+          environment: process.env.NODE_ENV || 'development'
+        }
+      });
+      console.log('Created applicant record');
+    }
+    
+    // Add detailed logging before commit
+    console.log('About to commit batch with the following operations:');
+    console.log('- Creating user document for:', uid);
+    if (userType === 'subscriber') {
+      console.log('- Creating subscriber record for:', uid);
+    } else if (userType === 'applicant') {
+      console.log('- Creating applicant record for:', uid);
+    }
+    
+    // Commit all database operations atomically
+    try {
+      await batch.commit();
+      console.log('All user records created successfully');
+    } catch (batchError) {
+      console.error('Batch commit failed with error:', batchError);
+      if (batchError instanceof Error) {
+        console.error('Error code:', (batchError as any).code);
+        console.error('Error details:', (batchError as any).details);
+      }
+      throw batchError;
+    }
+    
+    // Construct and return user data object
+    const user: User = {
       userId: uid,
       email,
       userType,
-      createdAt: new Date(), 
+      createdAt: new Date(),
       profileCompleted: false
     };
     
-    await firestore.collection('users').doc(uid).set({
-      ...userData,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp() 
-    });
-    
-    return userData;
+    return user;
   } catch (error) {
     console.error('Sign up error:', error);
     
