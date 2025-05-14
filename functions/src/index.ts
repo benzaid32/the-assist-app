@@ -21,46 +21,46 @@ const EMAIL_TEMPLATES = {
     <head>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1">
-      <title>Verify Your Email - The Assist App</title>
+      <title>Verify Your Email</title>
       <style>
         body {
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+          font-family: 'SF Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
           line-height: 1.6;
           color: #000000;
-          background-color: #FFFFFF;
           margin: 0;
           padding: 0;
+          background-color: #f9f9f9;
         }
         .container {
           max-width: 600px;
           margin: 0 auto;
           padding: 20px;
+          background-color: #fff;
+          border-radius: 8px;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
         .header {
           text-align: center;
           padding: 20px 0;
+          border-bottom: 1px solid #e0e0e0;
         }
         .logo {
           max-width: 150px;
-        }
-        .content {
-          background-color: #FFFFFF;
-          padding: 30px;
-          border-radius: 8px;
-          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+          margin-bottom: 20px;
         }
         h1 {
-          color: #FF5A5F;
+          color: #000000;
           font-size: 24px;
-          margin-bottom: 20px;
+          margin: 0;
+          padding: 0;
         }
-        p {
-          margin-bottom: 20px;
+        .content {
+          padding: 20px 0;
         }
         .button {
           display: inline-block;
-          background-color: #FF5A5F;
-          color: #FFFFFF;
+          background-color: #000000;
+          color: white;
           text-decoration: none;
           padding: 12px 24px;
           border-radius: 4px;
@@ -69,29 +69,31 @@ const EMAIL_TEMPLATES = {
         }
         .footer {
           text-align: center;
-          padding: 20px 0;
+          color: #757575;
           font-size: 12px;
-          color: #666666;
+          padding: 20px 0;
+          border-top: 1px solid #e0e0e0;
         }
       </style>
     </head>
     <body>
       <div class="container">
         <div class="header">
-          <img src="https://firebasestorage.googleapis.com/v0/b/assist-app-6c044.appspot.com/o/public%2Flogo.png?alt=media" alt="The Assist App" class="logo">
+          <img src="https://raw.githubusercontent.com/bendlala/TheAssistApp/main/src/assets/images/logo.png" alt="The Assist App" class="logo">
+          <h1>Verify Your Email</h1>
         </div>
         <div class="content">
-          <h1>Verify Your Email Address</h1>
-          <p>Thank you for signing up with The Assist App. To complete your registration and access all features, please verify your email address.</p>
-          <p>This helps us ensure the security of your account and keep you informed about important updates.</p>
-          <p><a href="{{verificationLink}}" class="button">Verify Email Address</a></p>
-          <p>If you didn't create an account with The Assist App, you can safely ignore this email.</p>
-          <p>If the button above doesn't work, copy and paste this link into your browser:</p>
-          <p>{{verificationLink}}</p>
+          <p>Hello {{name}},</p>
+          <p>Thank you for signing up with The Assist App. To complete your registration, please verify your email address by clicking the button below:</p>
+          <p style="text-align: center;">
+            <a href="{{verificationLink}}" class="button">Verify Email</a>
+          </p>
+          <p>If you didn't create an account with us, you can safely ignore this email.</p>
+          <p>This link will expire in 24 hours.</p>
         </div>
         <div class="footer">
           <p>&copy; {{year}} The Assist App. All rights reserved.</p>
-          <p>This is an automated message, please do not reply to this email.</p>
+          <p><a href="mailto:support@theassistapp.org" style="color: #404040; text-decoration: none;">support@theassistapp.org</a></p>
         </div>
       </div>
     </body>
@@ -104,46 +106,46 @@ const EMAIL_TEMPLATES = {
     <head>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1">
-      <title>Reset Your Password - The Assist App</title>
+      <title>Reset Your Password</title>
       <style>
         body {
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+          font-family: 'SF Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
           line-height: 1.6;
           color: #000000;
-          background-color: #FFFFFF;
           margin: 0;
           padding: 0;
+          background-color: #f9f9f9;
         }
         .container {
           max-width: 600px;
           margin: 0 auto;
           padding: 20px;
+          background-color: #fff;
+          border-radius: 8px;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
         .header {
           text-align: center;
           padding: 20px 0;
+          border-bottom: 1px solid #e0e0e0;
         }
         .logo {
           max-width: 150px;
-        }
-        .content {
-          background-color: #FFFFFF;
-          padding: 30px;
-          border-radius: 8px;
-          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+          margin-bottom: 20px;
         }
         h1 {
-          color: #FF5A5F;
+          color: #000000;
           font-size: 24px;
-          margin-bottom: 20px;
+          margin: 0;
+          padding: 0;
         }
-        p {
-          margin-bottom: 20px;
+        .content {
+          padding: 20px 0;
         }
         .button {
           display: inline-block;
-          background-color: #FF5A5F;
-          color: #FFFFFF;
+          background-color: #000000;
+          color: white;
           text-decoration: none;
           padding: 12px 24px;
           border-radius: 4px;
@@ -152,28 +154,33 @@ const EMAIL_TEMPLATES = {
         }
         .footer {
           text-align: center;
-          padding: 20px 0;
+          color: #757575;
           font-size: 12px;
-          color: #666666;
+          padding: 20px 0;
+          border-top: 1px solid #e0e0e0;
         }
       </style>
     </head>
     <body>
       <div class="container">
         <div class="header">
-          <img src="https://firebasestorage.googleapis.com/v0/b/assist-app-6c044.appspot.com/o/public%2Flogo.png?alt=media" alt="The Assist App" class="logo">
+          <img src="https://raw.githubusercontent.com/bendlala/TheAssistApp/main/src/assets/images/logo.png" alt="The Assist App" class="logo">
+          <h1>Reset Your Password</h1>
         </div>
         <div class="content">
-          <h1>Reset Your Password</h1>
-          <p>We received a request to reset your password for The Assist App. Click the button below to create a new password.</p>
-          <p><a href="{{resetLink}}" class="button">Reset Password</a></p>
-          <p>If you didn't request a password reset, you can safely ignore this email. Your password will remain unchanged.</p>
+          <p>Hello,</p>
+          <p>We received a request to reset your password for your account with The Assist App. If you didn't make this request, you can safely ignore this email.</p>
+          <p>To reset your password, click the button below:</p>
+          <p style="text-align: center;">
+            <a href="{{resetLink}}" class="button">Reset Password</a>
+          </p>
+          <p>This link will expire in 1 hour for security reasons.</p>
           <p>If the button above doesn't work, copy and paste this link into your browser:</p>
           <p>{{resetLink}}</p>
         </div>
         <div class="footer">
           <p>&copy; {{year}} The Assist App. All rights reserved.</p>
-          <p>This is an automated message, please do not reply to this email.</p>
+          <p><a href="mailto:support@theassistapp.org" style="color: #404040; text-decoration: none;">support@theassistapp.org</a></p>
         </div>
       </div>
     </body>
@@ -184,11 +191,19 @@ const EMAIL_TEMPLATES = {
 // Initialize Resend with API key from environment variables
 const initializeResend = () => {
   try {
-    // Get API key from environment variables
-    const apiKey = process.env.RESEND_API_KEY;
+    // Check for API key in environment variables or Firebase config
+    let apiKey: string | undefined;
+    
+    // For production environment (Firebase)
+    if (functions.config().resend?.api_key) {
+      apiKey = functions.config().resend.api_key;
+    } else {
+      // For local development (.env file)
+      apiKey = process.env.RESEND_API_KEY;
+    }
 
     if (!apiKey) {
-      throw new Error("Missing Resend API key. Set RESEND_API_KEY in .env file");
+      throw new Error("Resend API key not found in environment variables or Firebase config");
     }
 
     return new Resend(apiKey);
@@ -219,8 +234,19 @@ const sendEmail = async (
     const resend = initializeResend();
     const html = compileTemplate(template, data);
 
+    // Get from email from Firebase config or environment variables
+    let fromEmail: string;
+    
+    // For production environment (Firebase)
+    if (functions.config().email?.from) {
+      fromEmail = functions.config().email.from;
+    } else {
+      // For local development (.env file)
+      fromEmail = process.env.FROM_EMAIL || "noreply@theassistapp.org";
+    }
+    
     const response = await resend.emails.send({
-      from: "The Assist App <noreply@theassistapp.org>",
+      from: `The Assist App <${fromEmail}>`,
       to,
       subject,
       html,
@@ -268,9 +294,29 @@ export const sendVerificationEmail = functions.https.onCall(async (data: Record<
     // In a production app, implement proper rate limiting using Firestore or Redis
 
     // Generate a verification link
-    const appUrl = data.appUrl || "https://theassistapp.com";
+    // Get the app URL from Firebase config, environment variables, or use default
+    let appUrl: string;
+    
+    // Check if data.appUrl is provided
+    if (data.appUrl && typeof data.appUrl === 'string') {
+      appUrl = data.appUrl;
+    } 
+    // For production environment (Firebase)
+    else if (functions.config().app?.verification_url) {
+      appUrl = functions.config().app.verification_url;
+    } 
+    // For local development (.env file)
+    else {
+      appUrl = process.env.VERIFICATION_REDIRECT_URL || "https://theassistapp.org";
+    }
+    
+    // Ensure we have a valid URL format
+    const verificationUrl = appUrl.toString().endsWith("/") 
+      ? `${appUrl}verify-email?uid=${uid}` 
+      : `${appUrl}/verify-email?uid=${uid}`;
+    
     const actionCodeSettings = {
-      url: `${appUrl}/verify-email?uid=${uid}`,
+      url: verificationUrl,
       handleCodeInApp: true,
     };
 

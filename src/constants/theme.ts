@@ -1,11 +1,22 @@
 export const colors = {
+  // Primary colors
   background: '#FFFFFF',
   primaryText: '#000000',
-  accent: '#FF5A5F',
-  highlight: '#F4A261',
+  secondaryText: '#757575',
+  accent: '#000000',      // Changed from #FF5A5F to black
+  highlight: '#404040',   // Changed from #F4A261 to dark gray
+  
+  // Neutral colors
   neutralBorders: '#E0E0E0',
-  // Add other common colors like success, error, warning if needed
-  // e.g., success: '#28a745', error: '#dc3545', warning: '#ffc107'
+  border: '#E0E0E0',
+  white: '#FFFFFF',
+  black: '#000000',
+  
+  // Semantic colors (using grayscale)
+  error: '#8B0000',       // Dark red (closer to black)
+  success: '#2E8B57',     // Dark green (closer to black)
+  warning: '#808080',     // Gray
+  info: '#404040'         // Dark gray
 };
 
 export const typography = {
@@ -16,10 +27,12 @@ export const typography = {
   },
   fontSizes: {
     headline: 24, // Average of 22-26px
+    subheading: 20,
     body: 16,
+    button: 16,
     label: 12,
     input: 14,
-    button: 16,
+    caption: 12,
   },
   fontWeights: {
     // These might map to your font family variants if not separate font files

@@ -43,13 +43,29 @@ The Cloud Functions in this directory handle all email-related operations for Th
    - Copy the API key for the next step
 
 4. Configure environment variables:
-   - Create a `.env` file in the functions directory with your Resend API key:
+   - Create a `.env` file in the functions directory with your Resend API key and other required variables:
      ```
+     # Resend API key for email operations
      RESEND_API_KEY=your_api_key_here
+     
+     # URL for email verification redirects
+     VERIFICATION_REDIRECT_URL=https://theassistapp.org
+     
+     # Email addresses
+     FROM_EMAIL=noreply@theassistapp.org
+     SUPPORT_EMAIL=support@theassistapp.org
      ```
-   - For production, set the environment variable in Firebase:
+   - For production, set the environment variables in Firebase:
      ```bash
+     # Set Resend API key
      firebase functions:config:set resend.api_key="your_api_key_here"
+     
+     # Set verification redirect URL
+     firebase functions:config:set app.verification_url="https://theassistapp.org"
+     
+     # Set email addresses
+     firebase functions:config:set email.from="noreply@theassistapp.org"
+     firebase functions:config:set email.support="support@theassistapp.org"
      ```
 
 ### Local Development
