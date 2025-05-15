@@ -1,5 +1,5 @@
 /**
- * Types for the email functions
+ * Enterprise-grade type definitions for the application
  */
 
 // Available email templates
@@ -38,6 +38,16 @@ export interface UserRole {
   subscriber?: boolean;
   applicant?: boolean;
   admin?: boolean;
+}
+
+/**
+ * UserType enum for strongly typed user types
+ * Used throughout the application for consistent type checking
+ */
+export enum UserType {
+  SUBSCRIBER = 'subscriber',
+  APPLICANT = 'applicant',
+  ADMIN = 'admin'
 }
 
 // Email verification request data

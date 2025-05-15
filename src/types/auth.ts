@@ -4,13 +4,19 @@ export enum UserType {
   ADMIN = 'admin',
 }
 
+/**
+ * Enterprise-grade User interface with proper typing
+ * Following best practices for optional fields and authentication state
+ */
 export interface User {
   userId: string;
-  email: string;
+  email: string | null;
   displayName?: string;
-  userType: UserType;
-  createdAt: Date;
-  profileCompleted: boolean;
+  userType: UserType | string; // Allow string for backward compatibility
+  createdAt?: Date | any; // Using any for Firestore Timestamp compatibility
+  profileCompleted?: boolean; // Optional for new users
+  emailVerified?: boolean; // Added for auth state tracking
+  metadata?: Record<string, any>; // For additional user metadata
 }
 
 export interface AuthState {

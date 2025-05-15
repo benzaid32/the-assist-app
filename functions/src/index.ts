@@ -6,6 +6,7 @@ import * as dotenv from "dotenv";
 
 // Import public authentication functions
 import { sendPreAuthVerificationCode, verifyPreAuthCode } from './public-auth';
+import { createVerifiedUser } from './user-management';
 
 // Load environment variables from .env file
 dotenv.config();
@@ -265,9 +266,8 @@ const sendEmail = async (
   }
 };
 
-// Function to send a verification code email
-// Export the public auth endpoints
-export { sendPreAuthVerificationCode, verifyPreAuthCode };
+// Export the public auth endpoints and user management functions
+export { sendPreAuthVerificationCode, verifyPreAuthCode, createVerifiedUser };
 
 // Legacy function for authenticated users - now deprecated for pre-auth
 // This is kept for backward compatibility with existing users
@@ -403,97 +403,6 @@ export const sendVerificationCode = functions.https.onCall(async (data: Record<s
     );
   }
 });
-
-// Function to send a custom verification email
-export const sendVerificationEmail = functions.https.onCall(async (data: Record<string, unknown>, context: functions.https.CallableContext) => {
-  try {
-    // Security check - user must be authenticated
-    if (!context.auth) {
-      throw new functions.https.HttpsError(
-        "unauthenticated",
-        "User must be authenticated to send verification email"
-      );
-    }
-
-    const { uid } = context.auth;
-    const user = await admin.auth().getUser(uid);
-
-    if (!user.email) {
-      throw new functions.https.HttpsError(
-        "failed-precondition",
-        "User does not have an email address"
-      );
-    }
-
-    if (user.emailVerified) {
-      throw new functions.https.HttpsError(
-        "already-exists",
-        "Email is already verified"
-      );
-    }
-
-    // Rate limiting - check if a verification email was sent recently
-    // In a production app, implement proper rate limiting using Firestore or Redis
-
-    // Generate a verification link
-    // Get the app URL from Firebase config, environment variables, or use default
-    let appUrl: string;
-    
-    // Check if data.appUrl is provided
-    if (data.appUrl && typeof data.appUrl === 'string') {
-      appUrl = data.appUrl;
-    } 
-    // For production environment (Firebase)
-    else if (functions.config().app?.verification_url) {
-      appUrl = functions.config().app.verification_url;
-    } 
-    // For local development (.env file)
-    else {
-      appUrl = process.env.VERIFICATION_REDIRECT_URL || "https://theassistapp.org";
-    }
-    
-    // Ensure we have a valid URL format
-    const verificationUrl = appUrl.toString().endsWith("/") 
-      ? `${appUrl}verify-email?uid=${uid}` 
-      : `${appUrl}/verify-email?uid=${uid}`;
-    
-    const actionCodeSettings = {
-      url: verificationUrl,
-      handleCodeInApp: true,
-    };
-
-    const verificationLink = await admin.auth().generateEmailVerificationLink(
-      user.email,
-      actionCodeSettings
-    );
-
-    // Send the custom email
-    await sendEmail(
-      user.email,
-      "Verify Your Email - The Assist App",
-      "verification",
-      { verificationLink }
-    );
-
-    // Log the action for auditing
-    functions.logger.info(`Verification email sent to ${user.email} (${uid})`);
-
-    return { success: true, message: "Verification email sent successfully" };
-  } catch (error) {
-    functions.logger.error("Error sending verification email:", error);
-
-    if (error instanceof functions.https.HttpsError) {
-      throw error;
-    }
-
-    throw new functions.https.HttpsError(
-      "internal",
-      "Failed to send verification email",
-      { message: (error as Error).message }
-    );
-  }
-});
-
 // Function to send a custom password reset email
 export const sendPasswordResetEmail = functions.https.onCall(async (data: Record<string, unknown>, _context: functions.https.CallableContext) => {
   try {

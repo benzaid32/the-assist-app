@@ -1,6 +1,20 @@
-import { firebase } from '../firebase/config';
+import firebase from 'firebase/compat/app';
+import 'firebase/compat/auth';
+import 'firebase/compat/firestore';
+import 'firebase/compat/storage';
+import { getFirebaseServices } from './firebase/config';
 import { Alert } from 'react-native';
 import * as FileSystem from 'expo-file-system';
+
+// Define our own FileInfo interface to ensure type safety
+interface ExtendedFileInfo {
+  size: number;
+  exists: boolean;
+  uri: string;
+  isDirectory: boolean;
+  modificationTime?: number;
+  md5?: string;
+}
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as crypto from 'expo-crypto';
 import { UserType } from '../types/auth';
@@ -48,9 +62,18 @@ export interface UploadResult {
  * Implements enterprise-grade security and fraud prevention
  */
 export class DocumentUploadService {
-  private storage = firebase.storage();
-  private firestore = firebase.firestore();
-  private auth = firebase.auth();
+  // Use initialized services from the central Firebase config
+  private get storage() {
+    return getFirebaseServices().storage;
+  }
+  
+  private get firestore() {
+    return getFirebaseServices().firestore;
+  }
+  
+  private get auth() {
+    return getFirebaseServices().auth;
+  }
   
   /**
    * Generate a secure, random document ID
@@ -133,8 +156,8 @@ export class DocumentUploadService {
    */
   private async validateDocument(uri: string, category: DocumentCategory): Promise<boolean> {
     try {
-      // Get file info
-      const fileInfo = await FileSystem.getInfoAsync(uri);
+      // Get file info with proper enterprise-grade type safety
+      const fileInfo = await FileSystem.getInfoAsync(uri, { size: true }) as ExtendedFileInfo;
       
       // Check file size (max 5MB)
       if (fileInfo.size > 5 * 1024 * 1024) {
@@ -176,13 +199,19 @@ export class DocumentUploadService {
     fileName?: string
   ): Promise<UploadResult> {
     try {
-      // Check if user is authenticated
+      // Validate inputs
+      if (!uri) {
+        return { status: UploadStatus.ERROR, error: 'No file URI provided' };
+      }
+
+      // Get current user
       const currentUser = this.auth.currentUser;
       if (!currentUser) {
-        throw new Error('User not authenticated');
+        return { status: UploadStatus.ERROR, error: 'User not authenticated' };
       }
-      
-      // Get user data to verify role
+
+      // Get file info with proper enterprise-grade type safety
+      const fileInfo = await FileSystem.getInfoAsync(uri, { size: true }) as ExtendedFileInfo;
       const userDoc = await this.firestore.collection('users').doc(currentUser.uid).get();
       const userData = userDoc.data();
       
@@ -205,8 +234,8 @@ export class DocumentUploadService {
       // Generate secure document ID
       const documentId = this.generateDocumentId();
       
-      // Get file info
-      const fileInfo = await FileSystem.getInfoAsync(optimizedUri);
+      // Get file info for the optimized file
+      const optimizedFileInfo = await FileSystem.getInfoAsync(optimizedUri, { size: true }) as ExtendedFileInfo;
       const fileType = optimizedUri.split('.').pop()?.toLowerCase() || '';
       const secureFileName = `${documentId}.${fileType}`;
       
@@ -216,7 +245,7 @@ export class DocumentUploadService {
       // Prepare metadata
       const metadata: DocumentMetadata = {
         fileName: fileName || secureFileName,
-        fileSize: fileInfo.size,
+        fileSize: optimizedFileInfo.size,
         fileType: fileType === 'pdf' ? 'application/pdf' : `image/${fileType}`,
         uploadedBy: currentUser.uid,
         uploadTimestamp: Date.now(),

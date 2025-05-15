@@ -3,7 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 
 // Auth Screens
 import { LoginScreen } from '../screens/auth/LoginScreen';
@@ -15,8 +15,7 @@ import { ApplicantOnboardingScreen } from '../screens/auth/ApplicantOnboardingSc
 
 // App Screens
 import { HomeScreen } from '../screens/app/HomeScreen';
-import { ProfileScreen } from '../screens/app/ProfileScreen';
-import { SettingsScreen } from '../screens/app/SettingsScreen';
+import SettingsScreen from '../screens/app/settings/SettingsScreen';
 import { DocumentUploadScreen } from '../screens/app/DocumentUploadScreen';
 
 // Context
@@ -152,7 +151,7 @@ const AppNavigator = () => {
         component={PlaceholderScreen} 
         options={{ title: 'Your Impact' }}
       />
-      <AppStack.Screen name="Profile" component={ProfileScreen} />
+      <AppStack.Screen name="Profile" component={SettingsScreen} />
     </AppStack.Navigator>
   );
 };
@@ -173,21 +172,87 @@ const CommunityScreen = () => (
   </View>
 );
 
-// Root navigator
+// Enterprise-grade Root Navigator with comprehensive state management
 export const RootNavigator = () => {
-  const { user, isLoading } = useAuth();
+  // Get full auth state including isAuthenticated flag, not just user object
+  const { user, isLoading, isAuthenticated, error } = useAuth();
+  
+  // Track navigation state for diagnostics
+  const [navigationState, setNavigationState] = React.useState<string>('initializing');
+
+  // Add detailed diagnostic logging for navigation routing
+  React.useEffect(() => {
+    // Enhanced logging with more detailed user information
+    console.log('RootNavigator auth state:', { 
+      hasUser: !!user, 
+      userID: user?.userId || 'none',
+      email: user?.email || 'none',
+      userType: user?.userType || 'none',
+      isAuthenticated,
+      isLoading,
+      hasError: !!error,
+      navigationState
+    });
+  }, [user, isAuthenticated, isLoading, error, navigationState]);
+
+  // Force refresh on auth state change for more reliable navigation
+  const [key, setKey] = React.useState(0);
+  
+  React.useEffect(() => {
+    if (!isLoading) {
+      // Generate a new key when auth state changes to force NavigationContainer to reset
+      setKey(prevKey => prevKey + 1);
+      
+      // Update navigation state for diagnostics
+      if (isAuthenticated && user) {
+        setNavigationState('authenticated');
+      } else if (user && !isAuthenticated) {
+        setNavigationState('partial-auth');
+      } else {
+        setNavigationState('unauthenticated');
+      }
+      
+      console.log('Navigation container reset due to auth state change');
+    }
+  }, [isAuthenticated, isLoading, user]);
 
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Loading...</Text>
+        <ActivityIndicator size="large" color={colors.black} />
+        <Text style={styles.loadingText}>Loading your session...</Text>
+      </View>
+    );
+  }
+  
+  // Handle error state with properly styled error UI
+  if (error) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.placeholderTitle}>Authentication Error</Text>
+        <Text style={styles.placeholderText}>{error}</Text>
+        <TouchableOpacity 
+          style={styles.errorButton}
+          onPress={() => {
+            // Get auth context from useAuth() hook
+            const { clearError } = useAuth();
+            // Clear the error
+            clearError();
+          }}
+        >
+          <Text style={styles.errorButtonText}>Try Again</Text>
+        </TouchableOpacity>
       </View>
     );
   }
 
   return (
-    <NavigationContainer>
-      {user ? <AppNavigator /> : <AuthNavigator />}
+    <NavigationContainer key={key}>
+      {/* 
+        Explicitly use isAuthenticated flag rather than just checking for user object
+        This ensures proper navigation state based on authentication status
+      */}
+      {isAuthenticated ? <AppNavigator /> : <AuthNavigator />}
     </NavigationContainer>
   );
 };
@@ -213,7 +278,7 @@ const styles = StyleSheet.create({
   },
   placeholderTitle: {
     fontFamily: typography.fonts.bold,
-    fontSize: typography.fontSizes.title,
+    fontSize: typography.fontSizes.sectionHeading,
     color: colors.black,
     marginBottom: 12,
   },
@@ -221,6 +286,27 @@ const styles = StyleSheet.create({
     fontFamily: typography.fonts.regular,
     fontSize: typography.fontSizes.body,
     color: colors.secondaryText,
+    textAlign: 'center',
+  },
+  // Error handling UI styles - enterprise-grade standards
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: colors.background,
+  },
+  errorButton: {
+    marginTop: 24,
+    backgroundColor: colors.black,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+  },
+  errorButtonText: {
+    fontFamily: typography.fonts.medium,
+    fontSize: typography.fontSizes.button,
+    color: colors.white,
     textAlign: 'center',
   },
 });

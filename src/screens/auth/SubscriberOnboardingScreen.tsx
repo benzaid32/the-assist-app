@@ -21,8 +21,9 @@ import { useAuth } from '../../contexts/AuthContext';
 import { colors, typography } from '../../constants/theme';
 import { UserType } from '../../types/auth';
 
-// Import PreAuthService for enterprise-grade authentication flow
+// Import enterprise-grade services for authentication and user management
 import { PreAuthService } from '../../services/api/preAuthService';
+import { UserManagementService } from '../../services/api/userManagementService';
 
 // Import the RootStackParamList from App.tsx for proper navigation typing
 import { RootStackParamList } from '../../../App';
@@ -44,6 +45,11 @@ export const SubscriberOnboardingScreen = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [address, setAddress] = useState('');
+  const [city, setCity] = useState('');
+  const [state, setState] = useState('');
+  const [zipCode, setZipCode] = useState('');
   const [subscriptionAmount, setSubscriptionAmount] = useState('10');
   const [isCustomAmount, setIsCustomAmount] = useState(false);
   const [customAmount, setCustomAmount] = useState('');
@@ -165,9 +171,9 @@ export const SubscriberOnboardingScreen = () => {
     }
   };
 
-  // Complete signup after email verification by creating the user account
+  // Complete signup after email verification using our enterprise-grade approach
   const handleCompleteSignup = async () => {
-    if (!email || !password || !name || !isEmailVerified || !verificationId) {
+    if (!email || !password || !name || !phone || !address || !city || !state || !zipCode || !isEmailVerified || (isCustomAmount && !customAmount)) {
       setError('Please fill in all required fields and verify your email');
       return;
     }
@@ -190,101 +196,76 @@ export const SubscriberOnboardingScreen = () => {
       setIsLoading(true);
       setError(null);
       
-      // Determine the final amount to use
+      // Calculate the final subscription amount
       const finalAmount = isCustomAmount 
         ? parseFloat(customAmount) 
         : parseInt(subscriptionAmount, 10);
       
-      // Create the user with additional subscriber data
+      // Prepare user data for Cloud Function
       const userData = {
         name,
+        phone,
+        address,
+        city,
+        state,
+        zipCode,
         subscriptionAmount: finalAmount
       };
       
-      // For now we have to implement this part manually since
-      // our PreAuthService's createVerifiedUser method isn't fully functional yet
+      console.log('Starting enterprise-grade signup flow...');
       
-      // We'll create a manual implementation following enterprise standards
-      // Get Firebase Auth and Firestore instances
-      const auth = firebase.auth();
-      const db = firebase.firestore();
-      
-      // 1. Get the verified email from the verification record
-      const verificationRef = db.collection('preVerificationCodes').doc(verificationId);
-      const verificationDoc = await verificationRef.get();
-      
-      if (!verificationDoc.exists) {
-        throw new Error('Verification record not found. Please restart the signup process.');
-      }
-      
-      const verificationData = verificationDoc.data();
-      if (!verificationData || !verificationData.verified) {
-        throw new Error('Email verification status is invalid. Please verify your email first.');
-      }
-      
-      // 2. Create the Firebase Auth user
-      const userCredential = await auth.createUserWithEmailAndPassword(email, password);
-      if (!userCredential.user) {
-        throw new Error('Failed to create user account. Please try again.');
-      }
-      
-      // 3. Create user documents in a transaction to ensure data consistency
-      const userId = userCredential.user.uid;
-      const batch = db.batch();
-      
-      // Create base user document
-      const userRef = db.collection('users').doc(userId);
-      batch.set(userRef, {
+      // Step 1: Create the Firebase Auth user with our Cloud Function
+      const userId = await UserManagementService.createVerifiedUser(
+        verificationId,
         email,
-        userType: UserType.SUBSCRIBER,
-        emailVerified: true,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-        profileComplete: true,
-        lastLogin: firebase.firestore.FieldValue.serverTimestamp(),
-        metadata: {
-          createdBy: 'signup_process',
-          updatedBy: 'signup_process',
-          environment: process.env.NODE_ENV || 'development'
+        password,
+        UserType.SUBSCRIBER,
+        userData
+      );
+      
+      console.log('User created successfully, now authenticating session:', userId);
+      
+      // Step 2: Authenticate user with proper error handling for production environments
+      try {
+        // Get Firebase Auth instance
+        const auth = firebase.auth();
+        
+        // Clear any existing auth state to prevent session conflicts
+        await auth.signOut();
+        
+        // Sign in with proper credentials to establish session
+        const userCredential = await auth.signInWithEmailAndPassword(email, password);
+        
+        if (!userCredential.user) {
+          throw new Error('Authentication failed after signup. Please try logging in manually.');
         }
-      });
-      
-      // Create subscriber record
-      const subscriberRef = db.collection('subscribers').doc(userId);
-      batch.set(subscriberRef, {
-        userId,
-        name,
-        subscriptionAmount: finalAmount,
-        tier: finalAmount <= 5 ? 'basic' : finalAmount <= 15 ? 'standard' : 'premium',
-        status: 'active',
-        stripeId: null,
-        startDate: firebase.firestore.FieldValue.serverTimestamp(),
-        paymentHistory: [],
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-        metadata: {
-          createdBy: 'signup_process',
-          updatedBy: 'signup_process'
+        
+        console.log('Authentication successful, user signed in:', userCredential.user.uid);
+        
+        // Step 3: Get Firestore instance for session verification
+        const db = firebase.firestore();
+        
+        // Step 4: Verify that the user document exists in Firestore with cached read
+        const userDoc = await db.collection('users').doc(userCredential.user.uid).get({ source: 'server' });
+        
+        if (!userDoc.exists) {
+          console.warn('User document not found in Firestore after authentication. This may indicate a data consistency issue.');
+        } else {
+          console.log('User document found in Firestore, profile complete:', userDoc.data());
         }
-      });
-      
-      // Delete the verification record to prevent reuse
-      batch.delete(verificationRef);
-      
-      // Commit all changes atomically
-      await batch.commit();
-      
-      // Log in the user after successful account creation
-      await login({
-        email,
-        password
-      });
-      
-      // Navigate to home screen after successful signup
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'AppTabs' }],
-      });
+        
+        // Step 5: Navigate to home screen after successful signup and authentication
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'AppTabs' }],
+        });
+      } catch (authError) {
+        console.error('Post-signup authentication error:', authError);
+        setError('Account created but session authentication failed. Please try logging in manually.');
+        
+        // Navigate to login screen if authentication fails after account creation
+        navigation.navigate('Login');
+      }
       
     } catch (error) {
       console.error('Signup error:', error);
@@ -324,6 +305,62 @@ export const SubscriberOnboardingScreen = () => {
             onChangeText={setName}
             autoCapitalize="words"
             testID="name-input"
+          />
+
+          <Text style={styles.formLabel}>Phone Number</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Enter your phone number"
+            value={phone}
+            onChangeText={setPhone}
+            keyboardType="phone-pad"
+            testID="phone-input"
+          />
+          
+          <Text style={styles.formLabel}>Address</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Enter your street address"
+            value={address}
+            onChangeText={setAddress}
+            testID="address-input"
+          />
+          
+          <View style={styles.rowContainer}>
+            <View style={styles.halfInput}>
+              <Text style={styles.formLabel}>City</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="City"
+                value={city}
+                onChangeText={setCity}
+                testID="city-input"
+              />
+            </View>
+            
+            <View style={styles.halfInput}>
+              <Text style={styles.formLabel}>State</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="State"
+                value={state}
+                onChangeText={setState}
+                maxLength={2}
+                autoCapitalize="characters"
+                testID="state-input"
+              />
+            </View>
+          </View>
+          
+          <Text style={styles.formLabel}>ZIP Code</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="ZIP Code"
+            value={zipCode}
+            onChangeText={setZipCode}
+            keyboardType="number-pad"
+            maxLength={10}
+            testID="zip-input"
           />
 
           <Text style={styles.formLabel}>Email</Text>
@@ -765,6 +802,16 @@ const styles = StyleSheet.create({
     color: colors.primaryText,
     marginBottom: 8,
     fontWeight: '500',
+  },
+  // Styles for address fields layout
+  rowContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: 0,
+  },
+  halfInput: {
+    width: '48%',
   }
 });
 

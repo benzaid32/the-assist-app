@@ -11,8 +11,10 @@ import { Ionicons } from '@expo/vector-icons';
 
 enableScreens();
 
+// Import RootNavigator for proper navigation management
+import { RootNavigator } from './src/navigation/AppNavigator';
+
 // Direct imports of screens
-import { SplashScreen } from './src/screens/auth/SplashScreen';
 import { WelcomeScreen } from './src/screens/auth/WelcomeScreen';
 import { LoginScreen } from './src/screens/auth/LoginScreen';
 import { SignupScreen } from './src/screens/auth/SignupScreen';
@@ -20,8 +22,7 @@ import { ForgotPasswordScreen } from './src/screens/auth/ForgotPasswordScreen';
 import { SubscriberOnboardingScreen } from './src/screens/auth/SubscriberOnboardingScreen';
 import { ApplicantOnboardingScreen } from './src/screens/auth/ApplicantOnboardingScreen';
 import { HomeScreen } from './src/screens/app/HomeScreen';
-import { ProfileScreen } from './src/screens/app/ProfileScreen';
-import { SettingsScreen } from './src/screens/app/SettingsScreen';
+import SettingsScreen from './src/screens/app/settings/SettingsScreen';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import { ErrorBoundary } from './src/components/common/ErrorBoundary';
 import { LoadingScreen } from './src/components/common/LoadingScreen';
@@ -32,21 +33,20 @@ import { UserType } from './src/types/auth';
 // Define types for tab navigation
 type AppTabParamList = {
   Home: undefined;
-  Profile: undefined;
   Settings: undefined;
 };
 
-// Define navigation types
+// Define navigation types following enterprise-grade TypeScript standards
+// The explicit type definition ensures type safety across the application
 export type RootStackParamList = {
-  Splash: undefined;
   Welcome: undefined;
   Login: undefined;
   Signup: undefined;
   ForgotPassword: undefined;
-  SubscriberOnboarding: undefined; // Added for subscriber onboarding flow
-  ApplicantOnboarding: undefined; // Added for applicant onboarding flow
-  VerifyEmail: { userId: string; email: string; }; // Added for email verification flow
-  AppTabs: undefined; // This will hold our bottom tab navigator
+  SubscriberOnboarding: undefined; // Subscriber onboarding flow
+  ApplicantOnboarding: undefined; // Applicant onboarding flow
+  VerifyEmail: { userId: string; email: string; }; // Email verification flow
+  AppTabs: undefined; // Bottom tab navigator
 };
 
 // Create navigators
@@ -64,8 +64,6 @@ const AppTabs = () => {
 
           if (route.name === 'Home') {
             iconName = focused ? 'home' : 'home-outline';
-          } else if (route.name === 'Profile') {
-            iconName = focused ? 'person' : 'person-outline';
           } else if (route.name === 'Settings') {
             iconName = focused ? 'settings' : 'settings-outline';
           } else {
@@ -80,7 +78,6 @@ const AppTabs = () => {
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
       <Tab.Screen name="Settings" component={SettingsScreen} />
     </Tab.Navigator>
   );
@@ -89,15 +86,24 @@ const AppTabs = () => {
 // Main navigation component that will be wrapped with auth context
 const AppNavigator: React.FC = () => {
   const { isAuthenticated, isLoading, user } = useAuth();
-  const [initialRoute, setInitialRoute] = useState<keyof RootStackParamList>('Splash');
+  const [initialRoute, setInitialRoute] = useState<keyof RootStackParamList>('Welcome');
   const [isReady, setIsReady] = useState(false);
 
-  // Determine the initial route based on authentication state
+  // Determine the initial route based on authentication state with proper enterprise-grade type safety
   useEffect(() => {
     if (!isLoading) {
+      // Debug logs for authentication state
+      console.log('Authentication state:', { 
+        isAuthenticated, 
+        userExists: !!user,
+        userId: user?.userId || 'none',
+        userType: user?.userType || 'none'
+      });
+
       // If user is authenticated, go to app tabs
-      if (isAuthenticated) {
+      if (isAuthenticated && user) {
         setInitialRoute('AppTabs');
+        console.log('Navigation: Setting initial route to AppTabs after authentication');
       } else {
         // Check if we're in the middle of verification
         const isVerifying = user !== null && !isAuthenticated;
@@ -107,13 +113,17 @@ const AppNavigator: React.FC = () => {
           // Check user type to determine which onboarding screen to show
           if (user?.userType === UserType.SUBSCRIBER) {
             setInitialRoute('SubscriberOnboarding');
+            console.log('Navigation: Setting initial route to SubscriberOnboarding');
           } else if (user?.userType === UserType.APPLICANT) {
             setInitialRoute('ApplicantOnboarding');
+            console.log('Navigation: Setting initial route to ApplicantOnboarding');
           } else {
-            setInitialRoute('Splash');
+            setInitialRoute('Welcome');
+            console.log('Navigation: Setting initial route to Welcome (unknown user type)');
           }
         } else {
-          setInitialRoute('Splash');
+          setInitialRoute('Welcome');
+          console.log('Navigation: Setting initial route to Welcome (not authenticated)');
         }
       }
       setIsReady(true);
@@ -124,6 +134,8 @@ const AppNavigator: React.FC = () => {
     return <LoadingScreen message="Checking authentication..." />;
   }
 
+  // Using flat navigation structure as recommended for React Navigation v7
+  // This avoids "component has not been registered" errors
   return (
     <Stack.Navigator
       screenOptions={{
@@ -131,21 +143,14 @@ const AppNavigator: React.FC = () => {
       }}
       initialRouteName={initialRoute}
     >
-      {!isAuthenticated ? (
-        // Auth screens
-        <>
-          <Stack.Screen name="Splash" component={SplashScreen} />
-          <Stack.Screen name="Welcome" component={WelcomeScreen} />
-          <Stack.Screen name="Login" component={LoginScreen} />
-          <Stack.Screen name="Signup" component={SignupScreen} />
-          <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-          <Stack.Screen name="SubscriberOnboarding" component={SubscriberOnboardingScreen} />
-          <Stack.Screen name="ApplicantOnboarding" component={ApplicantOnboardingScreen} />
-        </>
-      ) : (
-        // App screens with bottom tabs
-        <Stack.Screen name="AppTabs" component={AppTabs} />
-      )}
+      {/* Register ALL screens upfront regardless of auth state */}
+      <Stack.Screen name="Welcome" component={WelcomeScreen} />
+      <Stack.Screen name="Login" component={LoginScreen} />
+      <Stack.Screen name="Signup" component={SignupScreen} />
+      <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+      <Stack.Screen name="SubscriberOnboarding" component={SubscriberOnboardingScreen} />
+      <Stack.Screen name="ApplicantOnboarding" component={ApplicantOnboardingScreen} />
+      <Stack.Screen name="AppTabs" component={AppTabs} />
     </Stack.Navigator>
   );
 };
@@ -185,14 +190,14 @@ export default function App() {
     return <LoadingScreen message="Initializing application..." />;
   }
 
+  // Updated root component with proper enterprise-grade navigation architecture
   return (
     <SafeAreaProvider>
       <ErrorBoundary>
         <AuthProvider auth={firebaseServices.auth} firestore={firebaseServices.firestore}>
-          <NavigationContainer>
-            <StatusBar style="dark" />
-            <AppNavigator />
-          </NavigationContainer>
+          {/* Using RootNavigator from AppNavigator.tsx to handle navigation state */}
+          <RootNavigator />
+          <StatusBar style="dark" />
         </AuthProvider>
       </ErrorBoundary>
     </SafeAreaProvider>

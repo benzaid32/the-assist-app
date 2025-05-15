@@ -206,6 +206,17 @@ export const LoginScreen = () => {
                   <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
                 </TouchableOpacity>
               </View>
+              
+              {/* Sign Up Link */}
+              <View style={styles.signupContainer}>
+                <Text style={styles.signupText}>Don't have an account? </Text>
+                <TouchableOpacity 
+                  onPress={handleNavigateToSignup}
+                  testID="signup-link-button"
+                >
+                  <Text style={styles.signupLinkText}>Sign Up</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </ScrollView>
@@ -348,6 +359,23 @@ const styles = StyleSheet.create({
     color: colors.accent,
     fontSize: 14,
     fontFamily: typography.fonts.medium,
+  },
+  signupContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 20,
+  },
+  signupText: {
+    fontSize: 14,
+    color: colors.secondaryText,
+    fontFamily: typography.fonts.regular,
+  },
+  signupLinkText: {
+    color: colors.black,
+    fontSize: 14,
+    fontFamily: typography.fonts.bold,
+    textDecorationLine: 'underline',
   },
 });
 

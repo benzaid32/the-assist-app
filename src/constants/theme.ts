@@ -23,6 +23,7 @@ export const colors = {
 /**
  * Assist App Font System (iOS – SF Pro)
  * Following enterprise-grade typography system for consistent UI
+ * Using Apple's design language with minimalist black and white aesthetic
  */
 export const typography = {
   // Primary Typeface: SF Pro (San Francisco Pro – Apple's system font)
@@ -44,6 +45,49 @@ export const typography = {
     smallNote: 12, // Small Notes / Hints
     small: 12, // Small text (same as smallNote for consistency)
     metrics: 20, // Numbers / Metrics (16-20px)
+  },
+  // Component-specific typography styles for enterprise-grade design
+  h1: {
+    fontFamily: 'SFPro-Bold',
+    fontSize: 28,
+    lineHeight: 34,
+    letterSpacing: -0.5,
+    color: '#000000',
+  },
+  h2: {
+    fontFamily: 'SFPro-Bold',
+    fontSize: 24,
+    lineHeight: 30,
+    letterSpacing: -0.5,
+    color: '#000000',
+  },
+  h3: {
+    fontFamily: 'SFPro-Semibold',
+    fontSize: 20,
+    lineHeight: 26,
+    letterSpacing: -0.3,
+    color: '#000000',
+  },
+  body: {
+    fontFamily: 'SFPro-Regular',
+    fontSize: 16,
+    lineHeight: 22,
+    letterSpacing: 0,
+    color: '#000000',
+  },
+  buttonText: {
+    fontFamily: 'SFPro-Medium',
+    fontSize: 16,
+    lineHeight: 22,
+    letterSpacing: -0.1,
+    color: '#000000',
+  },
+  caption: {
+    fontFamily: 'SFPro-Regular',
+    fontSize: 12,
+    lineHeight: 16,
+    letterSpacing: 0,
+    color: '#757575',
   },
   letterSpacing: {
     appTitle: -0.5, // App Title / Splash

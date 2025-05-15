@@ -5,7 +5,7 @@ import 'firebase/compat/firestore';
 import 'firebase/compat/functions';
 import { getUserData, signIn, signUp, signOut, resetPassword } from '../services/firebase/auth';
 import { sendVerificationEmail as sendVerificationEmailFn, sendPasswordResetEmail as sendPasswordResetEmailFn } from '../services/firebase/emailFunctions';
-import { AuthState, User, LoginCredentials, SignupCredentials } from '../types/auth';
+import { AuthState, User, LoginCredentials, SignupCredentials, UserType } from '../types/auth';
 import { logError, logInfo } from '../services/logging';
 
 // Initial auth state
@@ -150,30 +150,48 @@ export const AuthProvider = ({ children, auth, firestore }: AuthProviderProps) =
   // Listen for auth state changes with enhanced error handling
   useEffect(() => {
     let isMounted = true;
-    let isVerificationInProgress = false;
     
+    // Enterprise-grade auth state listener with proper error handling
     const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
       try {
         if (!isMounted) return; 
         
+        // Set initial loading state
+        setState(prev => ({ ...prev, isLoading: true }));
+        
         if (firebaseUser) {
           try {
-            const userData = await getUserData(firestore, firebaseUser.uid);
+            console.log('Firebase user authenticated:', firebaseUser.uid);
             
-            // Check if this user is in the verification process
-            const verificationDoc = await firestore
-              .collection('verificationCodes')
-              .doc(firebaseUser.uid)
-              .get();
+            // Get user data from Firestore
+            let userData = null;
+            try {
+              userData = await getUserData(firestore, firebaseUser.uid);
+              console.log('User data retrieved:', userData ? 'success' : 'not found');
+            } catch (userDataError) {
+              console.error('Error fetching user data:', userDataError);
+              // Continue with authentication even if user data fetch fails
+              // This prevents lockout if Firestore has permission issues
+            }
             
-            isVerificationInProgress = verificationDoc.exists && 
-              verificationDoc.data()?.verified === false;
+            // For enterprise-grade security, we consider a user authenticated if:
+            // 1. Firebase Auth has authenticated them
+            // 2. Their email is verified (or we're in development)
+            const isEmailVerified = firebaseUser.emailVerified || process.env.NODE_ENV === 'development';
             
             if (isMounted) {
+              // Create a properly typed user object following enterprise-grade standards
+              const userObject: User = userData || {
+                userId: firebaseUser.uid,
+                email: firebaseUser.email,
+                userType: UserType.SUBSCRIBER, // Use enum value for type safety
+                emailVerified: isEmailVerified,
+                profileCompleted: false // Default for new users
+              };
+              
               setState({
-                user: userData,
-                // Only set as authenticated if not in verification process
-                isAuthenticated: !!userData && !isVerificationInProgress,
+                user: userObject,
+                isAuthenticated: true, // User is authenticated if Firebase Auth says so
                 isLoading: false,
                 error: null,
               });

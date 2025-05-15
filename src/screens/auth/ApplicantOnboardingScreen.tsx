@@ -38,6 +38,11 @@ export const ApplicantOnboardingScreen = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [address, setAddress] = useState('');
+  const [city, setCity] = useState('');
+  const [state, setState] = useState('');
+  const [zipCode, setZipCode] = useState('');
   const [assistanceType, setAssistanceType] = useState<'rent' | 'utilities' | 'tuition' | ''>('');
   
   // Verification state
@@ -102,7 +107,7 @@ export const ApplicantOnboardingScreen = () => {
 
   // Handle form submission
   const handleSubmit = async () => {
-    if (!email || !password || !name || !assistanceType) {
+    if (!email || !password || !name || !phone || !address || !city || !state || !zipCode || !assistanceType) {
       setError('Please fill in all required fields');
       return;
     }
@@ -117,6 +122,18 @@ export const ApplicantOnboardingScreen = () => {
         password,
         userType: UserType.APPLICANT,
       });
+      
+      // Store additional user profile data - this would be saved to Firestore in production
+      const userProfile = {
+        name,
+        phone,
+        address,
+        city,
+        state,
+        zipCode,
+        assistanceType,
+      };
+      console.log('User profile data to store:', userProfile);
       
       // For demo purposes, generate a verification code here
       // In production, this would be handled by the backend
@@ -248,6 +265,62 @@ export const ApplicantOnboardingScreen = () => {
                 onChangeText={setPassword}
                 secureTextEntry
                 testID="password-input"
+              />
+              
+              <Text style={styles.formLabel}>Phone Number</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your phone number"
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="phone-pad"
+                testID="phone-input"
+              />
+              
+              <Text style={styles.formLabel}>Address</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your street address"
+                value={address}
+                onChangeText={setAddress}
+                testID="address-input"
+              />
+              
+              <View style={styles.rowContainer}>
+                <View style={styles.halfInput}>
+                  <Text style={styles.formLabel}>City</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="City"
+                    value={city}
+                    onChangeText={setCity}
+                    testID="city-input"
+                  />
+                </View>
+                
+                <View style={styles.halfInput}>
+                  <Text style={styles.formLabel}>State</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="State"
+                    value={state}
+                    onChangeText={setState}
+                    maxLength={2}
+                    autoCapitalize="characters"
+                    testID="state-input"
+                  />
+                </View>
+              </View>
+              
+              <Text style={styles.formLabel}>ZIP Code</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="ZIP Code"
+                value={zipCode}
+                onChangeText={setZipCode}
+                keyboardType="number-pad"
+                maxLength={10}
+                testID="zip-input"
               />
 
               <Text style={styles.formLabel}>Assistance Type</Text>
@@ -441,6 +514,15 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     textAlign: 'center',
     width: '100%',
+  },
+  rowContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: 0,
+  },
+  halfInput: {
+    width: '48%',
   },
   submitButton: {
     backgroundColor: colors.accent,
