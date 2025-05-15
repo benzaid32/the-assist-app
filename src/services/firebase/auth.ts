@@ -95,7 +95,6 @@ export const signUp = async (auth: firebase.auth.Auth, firestore: firebase.fires
     console.log(`User created successfully with ID: ${uid}`);
     
     // Generate a verification code
-    // Generate a 6-digit verification code
     const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
     
     // Store the verification code in Firestore with expiration time (30 minutes from now)
@@ -103,6 +102,7 @@ export const signUp = async (auth: firebase.auth.Auth, firestore: firebase.fires
     await verificationRef.set({
       code: verificationCode,
       email: email,
+      userType: userType, // Store user type for later use
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       expiresAt: new Date(Date.now() + 30 * 60 * 1000), // 30 minutes from now
       verified: false
@@ -124,83 +124,7 @@ export const signUp = async (auth: firebase.auth.Auth, firestore: firebase.fires
       // The user can request a new code later
     }
     
-    // Use a batch write for data consistency across collections
-    const batch = firestore.batch();
-    
-    // Create base user document - strictly following security rules field requirements
-    const userRef = firestore.collection('users').doc(uid);
-    const now = firebase.firestore.FieldValue.serverTimestamp();
-    batch.set(userRef, {
-      email,
-      userType,
-      createdAt: now,
-      updatedAt: now,
-      profileComplete: false,
-      lastLogin: now,
-      metadata: {
-        createdBy: 'signup_process',
-        updatedBy: 'signup_process',
-        environment: process.env.NODE_ENV || 'development'
-      }
-    });
-    
-    // Create specialized record based on user type
-    if (userType === 'subscriber') {
-      // Create subscriber record - ensuring it has all required fields from security rules
-      const subscriberRef = firestore.collection('subscribers').doc(uid);
-      batch.set(subscriberRef, {
-        userId: uid, // Not in rules but needed for our app logic
-        tier: 'basic', // Required by security rules
-        status: 'pending',
-        stripeId: null,
-        startDate: now,
-        paymentHistory: [],
-        createdAt: now,
-        updatedAt: now,
-        metadata: {
-          createdBy: 'signup_process',
-          updatedBy: 'signup_process'
-        }
-      });
-      console.log('Created subscriber record');
-    } else if (userType === 'applicant') {
-      // Create applicant record - ensuring it has all required fields from security rules
-      const applicantRef = firestore.collection('applicants').doc(uid);
-      batch.set(applicantRef, {
-        userId: uid, // Not in rules but needed for our app logic
-        status: 'pending',
-        applicationDate: now,
-        documents: [],
-        assistanceHistory: [],
-        createdAt: now,
-        updatedAt: now,
-        metadata: {
-          createdBy: 'signup_process',
-          updatedBy: 'signup_process'
-        }
-      });
-      console.log('Created applicant record');
-    }
-    
-    // Commit all database operations atomically
-    try {
-      await batch.commit();
-      console.log('All user records created successfully');
-      if (userType === 'subscriber') {
-        console.log('- Created subscriber record for:', uid);
-      } else if (userType === 'applicant') {
-        console.log('- Created applicant record for:', uid);
-      }
-    } catch (batchError) {
-      console.error('Batch commit failed with error:', batchError);
-      if (batchError instanceof Error) {
-        console.error('Error code:', (batchError as any).code);
-        console.error('Error details:', (batchError as any).details);
-      }
-      throw batchError;
-    }
-    
-    // Construct user data object
+    // Create a temporary user object - we'll create the actual database records after verification
     const user: User = {
       userId: uid,
       email,
@@ -358,12 +282,76 @@ export const verifyEmailWithCode = async (
       verifiedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     
-    // Update the user document to mark email as verified
+    // Now that the email is verified, create the user records in the database
+    // Get the user type from the verification data
+    const { email, userType } = verificationData;
+    
+    if (!email || !userType) {
+      throw new Error('User information is missing. Please try signing up again.');
+    }
+    
+    // Use a batch write for data consistency across collections
+    const batch = firestore.batch();
+    
+    // Create base user document - strictly following security rules field requirements
     const userRef = firestore.collection('users').doc(userId);
-    await userRef.update({
+    const now = firebase.firestore.FieldValue.serverTimestamp();
+    batch.set(userRef, {
+      email,
+      userType,
       emailVerified: true,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      createdAt: now,
+      updatedAt: now,
+      profileComplete: false,
+      lastLogin: now,
+      metadata: {
+        createdBy: 'signup_process',
+        updatedBy: 'signup_process',
+        environment: process.env.NODE_ENV || 'development'
+      }
     });
+    
+    // Create specialized record based on user type
+    if (userType === 'subscriber' || userType === UserType.SUBSCRIBER) {
+      // Create subscriber record - ensuring it has all required fields from security rules
+      const subscriberRef = firestore.collection('subscribers').doc(userId);
+      batch.set(subscriberRef, {
+        userId: userId, // Not in rules but needed for our app logic
+        tier: 'basic', // Required by security rules
+        status: 'pending',
+        stripeId: null,
+        startDate: now,
+        paymentHistory: [],
+        createdAt: now,
+        updatedAt: now,
+        metadata: {
+          createdBy: 'signup_process',
+          updatedBy: 'signup_process'
+        }
+      });
+      console.log('Creating subscriber record after verification');
+    } else if (userType === 'applicant' || userType === UserType.APPLICANT) {
+      // Create applicant record - ensuring it has all required fields from security rules
+      const applicantRef = firestore.collection('applicants').doc(userId);
+      batch.set(applicantRef, {
+        userId: userId, // Not in rules but needed for our app logic
+        status: 'pending',
+        applicationDate: now,
+        documents: [],
+        assistanceHistory: [],
+        createdAt: now,
+        updatedAt: now,
+        metadata: {
+          createdBy: 'signup_process',
+          updatedBy: 'signup_process'
+        }
+      });
+      console.log('Creating applicant record after verification');
+    }
+    
+    // Commit all database operations atomically
+    await batch.commit();
+    console.log('All user records created successfully after email verification');
     
     return true;
   } catch (error) {

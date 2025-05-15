@@ -119,8 +119,25 @@ service cloud.firestore {
       
       // Allow the user to update their verification status
       allow update: if isAuthenticated() && 
-                    request.auth.uid == userId &&
-                    request.resource.data.diff(resource.data).affectedKeys().hasAny(['verified', 'verifiedAt']);
+                     ((isAdmin() && resource.data.verified == false) || 
+                      (request.auth.uid == userId && resource.data.verified == false));
+                    
+      // Allow Cloud Functions to update verification codes (for resending)
+      allow write: if isSystem();
+    }
+
+    match /preVerificationCodes/{verificationId} {
+      // Allow creation without authentication - for email verification pre-signup
+      allow create: if request.resource.data.keys().hasAll(['code', 'email', 'userType', 'createdAt', 'expiresAt', 'verified']) && 
+                    isValidEmail(request.resource.data.email) && 
+                    request.resource.data.verified == false;
+                    
+      // Allow reading without authentication - needed to check verification status
+      allow read: if true;
+      
+      // Allow updating by anyone with the verification ID - for verification confirmation
+      allow update: if resource.data.verified == false && 
+                    request.resource.data.diff(resource.data).affectedKeys().hasOnly(['verified', 'verifiedAt']);
                     
       // Allow Cloud Functions to update verification codes (for resending)
       allow write: if isSystem();

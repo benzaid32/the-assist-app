@@ -4,6 +4,9 @@ import { Resend } from "resend";
 import * as handlebars from "handlebars";
 import * as dotenv from "dotenv";
 
+// Import public authentication functions
+import { sendPreAuthVerificationCode, verifyPreAuthCode } from './public-auth';
+
 // Load environment variables from .env file
 dotenv.config();
 
@@ -263,6 +266,11 @@ const sendEmail = async (
 };
 
 // Function to send a verification code email
+// Export the public auth endpoints
+export { sendPreAuthVerificationCode, verifyPreAuthCode };
+
+// Legacy function for authenticated users - now deprecated for pre-auth
+// This is kept for backward compatibility with existing users
 export const sendVerificationCode = functions.https.onCall(async (data: Record<string, unknown>, context: functions.https.CallableContext) => {
   try {
     // Validate input data

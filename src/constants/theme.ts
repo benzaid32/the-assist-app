@@ -16,7 +16,8 @@ export const colors = {
   error: '#8B0000',       // Dark red (closer to black)
   success: '#2E8B57',     // Dark green (closer to black)
   warning: '#808080',     // Gray
-  info: '#404040'         // Dark gray
+  info: '#404040',        // Dark gray
+  tertiaryText: '#A0A0A0' // Light gray for tertiary text
 };
 
 /**
@@ -35,11 +36,13 @@ export const typography = {
   fontSizes: {
     appTitle: 32, // App Title / Splash (28-32px)
     sectionHeading: 24, // Section Headings (22-26px)
+    title3: 20, // Tertiary headings
     body: 16, // Body Text
     button: 16, // Buttons (Primary)
     formLabel: 14, // Form Labels
     navItem: 14, // Tabs / Nav Items (12-14px)
     smallNote: 12, // Small Notes / Hints
+    small: 12, // Small text (same as smallNote for consistency)
     metrics: 20, // Numbers / Metrics (16-20px)
   },
   letterSpacing: {

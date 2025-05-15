@@ -27,6 +27,7 @@ import { ErrorBoundary } from './src/components/common/ErrorBoundary';
 import { LoadingScreen } from './src/components/common/LoadingScreen';
 import { initializeFirebaseServices, FirebaseServices } from './src/services/firebase/config';
 import { colors } from './src/constants/theme';
+import { UserType } from './src/types/auth';
 
 // Define types for tab navigation
 type AppTabParamList = {
@@ -44,6 +45,7 @@ export type RootStackParamList = {
   ForgotPassword: undefined;
   SubscriberOnboarding: undefined; // Added for subscriber onboarding flow
   ApplicantOnboarding: undefined; // Added for applicant onboarding flow
+  VerifyEmail: { userId: string; email: string; }; // Added for email verification flow
   AppTabs: undefined; // This will hold our bottom tab navigator
 };
 
@@ -86,9 +88,39 @@ const AppTabs = () => {
 
 // Main navigation component that will be wrapped with auth context
 const AppNavigator: React.FC = () => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
+  const [initialRoute, setInitialRoute] = useState<keyof RootStackParamList>('Splash');
+  const [isReady, setIsReady] = useState(false);
 
-  if (isLoading) {
+  // Determine the initial route based on authentication state
+  useEffect(() => {
+    if (!isLoading) {
+      // If user is authenticated, go to app tabs
+      if (isAuthenticated) {
+        setInitialRoute('AppTabs');
+      } else {
+        // Check if we're in the middle of verification
+        const isVerifying = user !== null && !isAuthenticated;
+        
+        // If we're in the middle of verification, stay on the onboarding screen
+        if (isVerifying) {
+          // Check user type to determine which onboarding screen to show
+          if (user?.userType === UserType.SUBSCRIBER) {
+            setInitialRoute('SubscriberOnboarding');
+          } else if (user?.userType === UserType.APPLICANT) {
+            setInitialRoute('ApplicantOnboarding');
+          } else {
+            setInitialRoute('Splash');
+          }
+        } else {
+          setInitialRoute('Splash');
+        }
+      }
+      setIsReady(true);
+    }
+  }, [isAuthenticated, isLoading, user]);
+
+  if (isLoading || !isReady) {
     return <LoadingScreen message="Checking authentication..." />;
   }
 
@@ -97,7 +129,7 @@ const AppNavigator: React.FC = () => {
       screenOptions={{
         headerShown: false,
       }}
-      initialRouteName={isAuthenticated ? 'AppTabs' : 'Splash'}
+      initialRouteName={initialRoute}
     >
       {!isAuthenticated ? (
         // Auth screens
