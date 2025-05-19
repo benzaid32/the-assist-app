@@ -257,7 +257,7 @@ export const SubscriberOnboardingScreen = () => {
         // Step 5: Navigate to home screen after successful signup and authentication
         navigation.reset({
           index: 0,
-          routes: [{ name: 'AppTabs' }],
+          routes: [{ name: 'MainTabs' }],
         });
       } catch (authError) {
         console.error('Post-signup authentication error:', authError);

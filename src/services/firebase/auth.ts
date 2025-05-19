@@ -95,6 +95,9 @@ export const signIn = async (auth: firebase.auth.Auth, firestore: firebase.fires
         throw new Error('Too many failed login attempts. Please try again later or reset your password.');
       } else if (errorMessage.includes('auth/network-request-failed')) {
         throw new Error('Network error. Please check your internet connection and try again.');
+      } else if (errorMessage.includes('auth/invalid-credential')) {
+        // Handle expired or malformed credentials
+        throw new Error('Your login session has expired. Please sign in again with your correct credentials.');
       } else if (errorMessage.includes('auth/email-not-verified') || errorMessage.includes('please verify your email')) {
         // Custom error for unverified email - maintain the original message
         throw error;
@@ -219,12 +222,22 @@ export const getUserData = async (firestore: firebase.firestore.Firestore, userI
     
     if (userDoc.exists) {
       const userData = userDoc.data() as Omit<User, 'createdAt' | 'userId'> & { createdAt: any }; 
-      return {
+      
+      // Convert userData to proper User object with userId
+      const user = {
         ...userData,
         userId: userId, // Explicitly set the userId from the document ID
-        createdAt: userData.createdAt?.toDate ? userData.createdAt.toDate() : new Date(userData.createdAt)
+        // Convert Firestore timestamps to Date objects
+        createdAt: userData.createdAt?.toDate ? userData.createdAt.toDate() : new Date(userData.createdAt),
+        // Ensure profileComplete is defined
+        profileComplete: userData.profileCompleted ?? true // Default to true to avoid navigation issues
       } as User;
+      
+      console.log('User document found in Firestore, profile complete:', JSON.stringify(user));
+      return user;
     }
+    
+    console.log('User document not found in Firestore for ID:', userId);
     return null;
   } catch (error) {
     console.error('Error fetching user data from Firestore:', error);

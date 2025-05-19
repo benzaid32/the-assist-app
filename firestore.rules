@@ -73,6 +73,18 @@ service cloud.firestore {
                     && request.resource.data.diff(resource.data).affectedKeys()
                        .hasOnly(['profileComplete', 'lastLogin', 'metadata'])
                     && resource.data.userType == request.resource.data.userType;
+      
+      // Rules for profile subcollection
+      match /profile/{profileDoc} {
+        // Allow users to read their own profile data
+        allow read: if isAuthenticated() && request.auth.uid == userId;
+        
+        // Allow users to create and update their own profile data
+        allow create, update: if isAuthenticated() && request.auth.uid == userId;
+        
+        // Allow deleting profile documents only by the user
+        allow delete: if isAuthenticated() && request.auth.uid == userId;
+      }
     }
 
     match /subscribers/{subId} {

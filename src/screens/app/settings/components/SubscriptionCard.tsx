@@ -2,16 +2,14 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { NavigationProp } from '@react-navigation/native';
 import { colors, typography } from '../../../../constants/theme';
-import { RootStackParamList } from '../../../../../App';
+import { ProfileData } from '../../../../services/api/profileService';
+
+// Define a simplified app navigation type
+type AppNavigation = Record<string, object | undefined>;
 
 type SubscriptionCardProps = {
-  subscriptionDetails: {
-    tier: string;
-    amount: number;
-    startDate: string;
-    nextPaymentDate: string;
-  };
-  navigation: NavigationProp<RootStackParamList>;
+  subscriptionDetails: NonNullable<ProfileData['subscriptionDetails']>;
+  navigation: NavigationProp<AppNavigation>;
 };
 
 /**
@@ -29,6 +27,21 @@ const SubscriptionCard = ({ subscriptionDetails, navigation }: SubscriptionCardP
     }
   };
 
+  // Format the dates for display
+  const formatDate = (dateString: string): string => {
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      });
+    } catch (error) {
+      console.error('Date formatting error:', error);
+      return dateString;
+    }
+  };
+
   return (
     <View style={styles.card}>
       <Text style={styles.cardTitle}>Subscription</Text>
@@ -37,28 +50,28 @@ const SubscriptionCard = ({ subscriptionDetails, navigation }: SubscriptionCardP
         <View style={styles.subscriptionRow}>
           <Text style={styles.subscriptionLabel}>Current tier</Text>
           <Text style={styles.subscriptionValue}>
-            {subscriptionDetails?.tier || 'Standard'}
+            {subscriptionDetails.tier}
           </Text>
         </View>
         
         <View style={styles.subscriptionRow}>
           <Text style={styles.subscriptionLabel}>Amount</Text>
           <Text style={styles.subscriptionValue}>
-            ${subscriptionDetails?.amount || 10}/month
+            ${subscriptionDetails.amount}/month
           </Text>
         </View>
         
         <View style={styles.subscriptionRow}>
           <Text style={styles.subscriptionLabel}>Started on</Text>
           <Text style={styles.subscriptionValue}>
-            {subscriptionDetails?.startDate || 'May 1, 2023'}
+            {formatDate(subscriptionDetails.startDate)}
           </Text>
         </View>
         
         <View style={styles.subscriptionRow}>
           <Text style={styles.subscriptionLabel}>Next payment</Text>
           <Text style={styles.subscriptionValue}>
-            {subscriptionDetails?.nextPaymentDate || 'Jun 1, 2023'}
+            {formatDate(subscriptionDetails.nextPaymentDate)}
           </Text>
         </View>
         

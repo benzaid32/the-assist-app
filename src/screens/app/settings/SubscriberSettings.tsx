@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,10 +11,10 @@ import {
   KeyboardAvoidingView,
   Platform,
   Animated,
-  TextInput
+  TextInput,
+  RefreshControl
 } from 'react-native';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
-import { RootStackParamList } from '../../../../App';
 import firebase from 'firebase/compat/app';
 import { useAuth } from '../../../contexts/AuthContext';
 import { colors, typography } from '../../../constants/theme';
@@ -27,10 +27,23 @@ import LogoutButton from './components/LogoutButton';
 import Footer from './components/Footer';
 import SubscriptionCard from './components/SubscriptionCard';
 import ImpactCard from './components/ImpactCard';
+import { ProfileService, ProfileData } from '../../../services/api/profileService';
+import { User } from '../../../types/auth';
+
+// Define a simplified navigation type for the settings screen
+type AppStackParamList = {
+  MainTabs: undefined;
+  AppTabs: undefined;
+  DocumentUpload: undefined;
+  ApplicationDetails: undefined;
+  SubscriptionManagement: undefined;
+  ImpactDetails: undefined;
+  Profile: undefined;
+};
 
 // Types for subscriber settings
 type SubscriberSettingsProps = {
-  user: any; // Replace with proper User type
+  user: User;
 };
 
 /**
@@ -38,14 +51,16 @@ type SubscriberSettingsProps = {
  * Shows subscription details, impact statistics, and account settings
  */
 const SubscriberSettings = ({ user }: SubscriberSettingsProps) => {
-  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const navigation = useNavigation<NavigationProp<AppStackParamList>>();
   const { logout } = useAuth();
-  const [profileData, setProfileData] = useState<any>(null);
+  const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
-  const [editedData, setEditedData] = useState<any>(null);
+  const [editedData, setEditedData] = useState<ProfileData | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [scrollY] = useState(new Animated.Value(0));
+  const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Dynamic header opacity based on scroll position
   const headerOpacity = scrollY.interpolate({
@@ -59,37 +74,41 @@ const SubscriberSettings = ({ user }: SubscriberSettingsProps) => {
     const fetchProfileData = async () => {
       try {
         setLoading(true);
+        setError(null);
         
-        // In a production app, this would fetch user profile data from Firestore
-        // For now, we'll use mock data
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
+        if (!user || !user.userId) {
+          throw new Error('User information is missing');
+        }
         
-        const mockProfileData = {
-          name: user.email ? user.email.split('@')[0] : 'User',
-          email: user.email || undefined,
-          phone: '555-123-4567',
-          address: '123 Main St',
-          city: 'San Francisco',
-          state: 'CA',
-          zipCode: '94105',
+        // Fetch real profile data from Firestore using the ProfileService
+        const data = await ProfileService.getProfileData(user.userId, user.userType);
+        
+        // Set the profile data in the component state
+        setProfileData(data);
+        setEditedData(data);
+      } catch (err) {
+        console.error('Error fetching profile data:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load your profile');
+        
+        // If there's an error fetching data, set empty profile data
+        const emptyProfileData: ProfileData = {
+          name: user.displayName || (user.email ? user.email.split('@')[0] : 'User'),
+          email: user.email,
           subscriptionDetails: {
             tier: 'Standard',
             amount: 10,
-            startDate: '2023-05-01',
-            nextPaymentDate: '2023-06-01'
+            startDate: new Date().toISOString().split('T')[0],
+            nextPaymentDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
           },
           impact: {
-            totalContributed: 120,
-            peopleHelped: 3,
-            joinedSince: '2023-01-15'
+            totalContributed: 0,
+            peopleHelped: 0,
+            joinedSince: new Date().toISOString().split('T')[0]
           }
         };
         
-        setProfileData(mockProfileData);
-        setEditedData(mockProfileData);
-      } catch (err) {
-        console.error('Error fetching profile data:', err);
-        Alert.alert('Error', 'Failed to load your profile. Please try again.');
+        setProfileData(emptyProfileData);
+        setEditedData(emptyProfileData);
       } finally {
         setLoading(false);
       }
@@ -101,10 +120,26 @@ const SubscriberSettings = ({ user }: SubscriberSettingsProps) => {
   // Handle input changes in edit mode
   const handleInputChange = (field: string, value: string) => {
     if (editedData) {
-      setEditedData({
-        ...editedData,
-        [field]: value,
-      });
+      // For nested fields, we need to handle them differently
+      if (field.includes('.')) {
+        const [parentField, childField] = field.split('.');
+        const parentValue = editedData[parentField as keyof ProfileData];
+        
+        if (parentValue && typeof parentValue === 'object') {
+          setEditedData({
+            ...editedData,
+            [parentField]: {
+              ...parentValue,
+              [childField]: value
+            }
+          });
+        }
+      } else {
+        setEditedData({
+          ...editedData,
+          [field]: value,
+        });
+      }
     }
   };
 
@@ -112,15 +147,44 @@ const SubscriberSettings = ({ user }: SubscriberSettingsProps) => {
   const handleSaveProfile = async () => {
     try {
       setIsSaving(true);
+      setError(null);
       
-      // In a production app, this would call a Firebase function to update the profile
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (!user || !user.userId || !editedData) {
+        throw new Error('Missing user information or profile data');
+      }
       
-      setProfileData(editedData);
+      // Create a complete profile object with all fields
+      // This ensures empty fields are also saved properly
+      const completeProfile: Partial<ProfileData> = {
+        name: editedData.name || '',
+        phone: editedData.phone || '',
+        address: editedData.address || '',
+        city: editedData.city || '',
+        state: editedData.state || '',
+        zipCode: editedData.zipCode || '',
+      };
+      
+      console.log('Saving profile with data:', completeProfile);
+      
+      // Save profile data to Firestore using the ProfileService
+      await ProfileService.updateProfileData(user.userId, completeProfile);
+      
+      // Fetch fresh data to ensure everything is up to date
+      try {
+        const freshData = await ProfileService.getProfileData(user.userId, user.userType);
+        setProfileData(freshData);
+        setEditedData(freshData);
+      } catch (refreshError) {
+        console.error('Error refreshing profile data:', refreshError);
+        // Still use the locally edited data if refresh fails
+        setProfileData(editedData);
+      }
+      
       setIsEditing(false);
       Alert.alert('Success', 'Your profile has been updated successfully.');
     } catch (err) {
       console.error('Error updating profile:', err);
+      setError(err instanceof Error ? err.message : 'Failed to update your profile');
       Alert.alert('Error', 'Failed to update your profile. Please try again.');
     } finally {
       setIsSaving(false);
@@ -143,6 +207,24 @@ const SubscriberSettings = ({ user }: SubscriberSettingsProps) => {
       Alert.alert('Error', 'Failed to log out. Please try again.');
     }
   };
+
+  // Pull to refresh handler
+  const onRefresh = useCallback(async () => {
+    if (!user || !user.userId) return;
+    
+    setRefreshing(true);
+    try {
+      const freshData = await ProfileService.getProfileData(user.userId, user.userType);
+      setProfileData(freshData);
+      setEditedData(freshData);
+      console.log('Profile data refreshed successfully');
+    } catch (err) {
+      console.error('Error refreshing profile data:', err);
+      setError(err instanceof Error ? err.message : 'Failed to refresh your profile');
+    } finally {
+      setRefreshing(false);
+    }
+  }, [user]);
 
   if (loading) {
     return (
@@ -173,11 +255,25 @@ const SubscriberSettings = ({ user }: SubscriberSettingsProps) => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
+        refreshControl={
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh}
+            colors={[colors.black]}
+            tintColor={colors.black}
+          />
+        }
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
           { useNativeDriver: false }
         )}
       >
+        {error && (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
+        
         {/* Profile Image Section */}
         <View style={styles.profileImageContainer}>
           <View style={styles.profileImagePlaceholder}>
@@ -194,15 +290,19 @@ const SubscriberSettings = ({ user }: SubscriberSettingsProps) => {
         </View>
         
         {/* Subscription Card */}
-        <SubscriptionCard 
-          subscriptionDetails={profileData.subscriptionDetails}
-          navigation={navigation}
-        />
+        {profileData?.subscriptionDetails && (
+          <SubscriptionCard 
+            subscriptionDetails={profileData.subscriptionDetails}
+            navigation={navigation}
+          />
+        )}
         
         {/* Impact Card */}
-        <ImpactCard 
-          impact={profileData.impact}
-        />
+        {profileData?.impact && (
+          <ImpactCard 
+            impact={profileData.impact}
+          />
+        )}
         
         {/* Personal Information Card */}
         <PersonalInfoCard 
@@ -249,40 +349,49 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    backgroundColor: colors.background,
   },
   loadingText: {
-    fontFamily: typography.fonts.regular,
-    fontSize: 16,
-    color: colors.secondaryText,
-    marginTop: 12,
+    fontFamily: typography.fonts.medium,
+    marginTop: 16,
+    fontSize: typography.fontSizes.body,
+    color: colors.primaryText,
   },
   profileImageContainer: {
     alignItems: 'center',
     marginBottom: 24,
   },
   profileImagePlaceholder: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: 'rgba(0,0,0,0.05)',
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: colors.black,
     justifyContent: 'center',
     alignItems: 'center',
   },
   profileImageInitial: {
     fontFamily: typography.fonts.bold,
-    fontSize: 36,
-    color: colors.black,
+    fontSize: 32,
+    color: colors.white,
   },
   changePhotoButton: {
-    marginTop: 12,
-    paddingVertical: 8,
+    marginTop: 8,
   },
   changePhotoText: {
     fontFamily: typography.fonts.medium,
-    fontSize: 14,
-    color: colors.black,
-    textDecorationLine: 'underline',
+    fontSize: typography.fontSizes.small,
+    color: colors.accent,
+  },
+  errorContainer: {
+    backgroundColor: colors.error + '20', // Adding transparency
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+  },
+  errorText: {
+    fontFamily: typography.fonts.medium,
+    fontSize: typography.fontSizes.small,
+    color: colors.error,
   },
 });
 

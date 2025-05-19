@@ -79,13 +79,15 @@ const styles = StyleSheet.create({
     color: colors.black,
   },
   editButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    backgroundColor: colors.black,
+    borderRadius: 8,
   },
   editButtonText: {
     fontFamily: typography.fonts.medium,
     fontSize: 16,
-    color: colors.black,
+    color: colors.white,
     fontWeight: '500',
   },
   editActions: {

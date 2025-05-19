@@ -30,10 +30,12 @@ export type AuthStackParamList = {
   VerifyEmail: { email: string };
   SubscriberOnboarding: undefined;
   ApplicantOnboarding: undefined;
+  Welcome: undefined;
 };
 
 export type AppStackParamList = {
   MainTabs: undefined;
+  AppTabs: undefined;
   DocumentUpload: undefined;
   ApplicationDetails: undefined;
   SubscriptionManagement: undefined;
@@ -135,6 +137,7 @@ const AppNavigator = () => {
       initialRouteName="MainTabs"
     >
       <AppStack.Screen name="MainTabs" component={MainTabsNavigator} />
+      <AppStack.Screen name="AppTabs" component={MainTabsNavigator} />
       <AppStack.Screen name="DocumentUpload" component={DocumentUploadScreen} />
       <AppStack.Screen 
         name="ApplicationDetails" 
@@ -195,14 +198,14 @@ export const RootNavigator = () => {
     });
   }, [user, isAuthenticated, isLoading, error, navigationState]);
 
+  // Create a React Navigation reference to handle navigation programmatically
+  const navigationRef = React.useRef<any>(null);
+  
   // Force refresh on auth state change for more reliable navigation
   const [key, setKey] = React.useState(0);
   
   React.useEffect(() => {
     if (!isLoading) {
-      // Generate a new key when auth state changes to force NavigationContainer to reset
-      setKey(prevKey => prevKey + 1);
-      
       // Update navigation state for diagnostics
       if (isAuthenticated && user) {
         setNavigationState('authenticated');
@@ -212,9 +215,10 @@ export const RootNavigator = () => {
         setNavigationState('unauthenticated');
       }
       
-      console.log('Navigation container reset due to auth state change');
+      // Instead of resetting the container, just log the state change
+      console.log('Navigation container auth state changed:', navigationState);
     }
-  }, [isAuthenticated, isLoading, user]);
+  }, [isAuthenticated, isLoading, user, navigationState]);
 
   if (isLoading) {
     return (
@@ -227,6 +231,9 @@ export const RootNavigator = () => {
   
   // Handle error state with properly styled error UI
   if (error) {
+    // Get clearError function from the same hook call we made at the top level
+    const { clearError } = useAuth();
+    
     return (
       <View style={styles.errorContainer}>
         <Text style={styles.placeholderTitle}>Authentication Error</Text>
@@ -234,9 +241,7 @@ export const RootNavigator = () => {
         <TouchableOpacity 
           style={styles.errorButton}
           onPress={() => {
-            // Get auth context from useAuth() hook
-            const { clearError } = useAuth();
-            // Clear the error
+            // Simply call the function we already obtained at the component level
             clearError();
           }}
         >
@@ -247,7 +252,14 @@ export const RootNavigator = () => {
   }
 
   return (
-    <NavigationContainer key={key}>
+    <NavigationContainer 
+      key={key}
+      ref={navigationRef}
+      onStateChange={(state) => {
+        // Log navigation state changes for debugging
+        console.log('Navigation state changed');
+      }}
+    >
       {/* 
         Explicitly use isAuthenticated flag rather than just checking for user object
         This ensures proper navigation state based on authentication status

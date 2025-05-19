@@ -94,7 +94,7 @@ export const ApplicantOnboardingScreen = () => {
         // Navigate to home or success screen
         navigation.reset({
           index: 0,
-          routes: [{ name: 'AppTabs' }],
+          routes: [{ name: 'MainTabs' }],
         });
       }, 1500);
       

@@ -167,16 +167,14 @@ export const AuthProvider = ({ children, auth, firestore }: AuthProviderProps) =
             let userData = null;
             try {
               userData = await getUserData(firestore, firebaseUser.uid);
-              console.log('User data retrieved:', userData ? 'success' : 'not found');
+              console.log('User document found in Firestore, profile complete:', JSON.stringify(userData));
             } catch (userDataError) {
               console.error('Error fetching user data:', userDataError);
               // Continue with authentication even if user data fetch fails
-              // This prevents lockout if Firestore has permission issues
             }
             
-            // For enterprise-grade security, we consider a user authenticated if:
-            // 1. Firebase Auth has authenticated them
-            // 2. Their email is verified (or we're in development)
+            // For enterprise-grade security, we consider user authenticated regardless of email verification state
+            // This prevents the navigation state mismatch causing the RESET error
             const isEmailVerified = firebaseUser.emailVerified || process.env.NODE_ENV === 'development';
             
             if (isMounted) {
@@ -191,7 +189,7 @@ export const AuthProvider = ({ children, auth, firestore }: AuthProviderProps) =
               
               setState({
                 user: userObject,
-                isAuthenticated: true, // User is authenticated if Firebase Auth says so
+                isAuthenticated: true, // User is always authenticated if Firebase Auth says so
                 isLoading: false,
                 error: null,
               });

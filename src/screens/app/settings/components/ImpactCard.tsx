@@ -2,13 +2,10 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { colors, typography } from '../../../../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
+import { ProfileData } from '../../../../services/api/profileService';
 
 type ImpactCardProps = {
-  impact: {
-    totalContributed: number;
-    peopleHelped: number;
-    joinedSince: string;
-  };
+  impact: NonNullable<ProfileData['impact']>;
 };
 
 /**
@@ -16,6 +13,21 @@ type ImpactCardProps = {
  * Used in subscriber settings screen
  */
 const ImpactCard = ({ impact }: ImpactCardProps) => {
+  // Format the joined date for display
+  const formatDate = (dateString: string): string => {
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      });
+    } catch (error) {
+      console.error('Date formatting error:', error);
+      return dateString;
+    }
+  };
+
   return (
     <View style={styles.card}>
       <Text style={styles.cardTitle}>Your Impact</Text>
@@ -35,7 +47,7 @@ const ImpactCard = ({ impact }: ImpactCardProps) => {
         
         <View style={styles.impactItem}>
           <Ionicons name="calendar-outline" size={24} color={colors.black} />
-          <Text style={styles.impactValue}>{impact.joinedSince}</Text>
+          <Text style={styles.impactValue}>{formatDate(impact.joinedSince)}</Text>
           <Text style={styles.impactLabel}>Joined Since</Text>
         </View>
       </View>

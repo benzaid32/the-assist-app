@@ -1,10 +1,11 @@
 import React from 'react';
 import { View, Text, StyleSheet, TextInput } from 'react-native';
 import { colors, typography } from '../../../../constants/theme';
+import { ProfileData } from '../../../../services/api/profileService';
 
 type PersonalInfoCardProps = {
-  profileData: any;
-  editedData: any;
+  profileData: ProfileData | null;
+  editedData: ProfileData | null;
   isEditing: boolean;
   handleInputChange: (field: string, value: string) => void;
 };
