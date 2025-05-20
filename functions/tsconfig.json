@@ -8,8 +8,14 @@
     "strict": true,
     "target": "es2017",
     "esModuleInterop": true,
-    "typeRoots": ["./node_modules/@types", "./src"],
-    "skipLibCheck": true
+    "typeRoots": ["./node_modules/@types"],
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "*": ["node_modules/*"],
+      "src/*": ["src/*"]
+    },
+    "resolveJsonModule": true
   },
   "compileOnSave": true,
   "include": [

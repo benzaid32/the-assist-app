@@ -266,8 +266,25 @@ const sendEmail = async (
   }
 };
 
+// Importing subscription security modules directly
+// Instead of importing from a module, we're importing the specific files
+import { runSubscriptionIntegrityCheck, checkSubscriptionIntegrity } from './subscription/integrityCheck';
+import { subscriptionApiRateLimit, getSubscriptionStatus } from './subscription/index';
+
 // Export the public auth endpoints and user management functions
-export { sendPreAuthVerificationCode, verifyPreAuthCode, createVerifiedUser };
+export { 
+  sendPreAuthVerificationCode, 
+  verifyPreAuthCode, 
+  createVerifiedUser 
+};
+
+// Export the subscription security modules
+export {
+  runSubscriptionIntegrityCheck,
+  checkSubscriptionIntegrity,
+  subscriptionApiRateLimit,
+  getSubscriptionStatus
+};
 
 // Legacy function for authenticated users - now deprecated for pre-auth
 // This is kept for backward compatibility with existing users

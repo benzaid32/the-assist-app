@@ -34,6 +34,7 @@ type SubscriberOnboardingScreenNavigationProp = NativeStackNavigationProp<RootSt
 /**
  * Subscriber Onboarding Screen
  * Collects subscriber information and completes the signup process
+ * Uses a clean, professional approach similar to major tech companies
  */
 export const SubscriberOnboardingScreen = () => {
   const navigation = useNavigation<SubscriberOnboardingScreenNavigationProp>();
@@ -50,9 +51,6 @@ export const SubscriberOnboardingScreen = () => {
   const [city, setCity] = useState('');
   const [state, setState] = useState('');
   const [zipCode, setZipCode] = useState('');
-  const [subscriptionAmount, setSubscriptionAmount] = useState('10');
-  const [isCustomAmount, setIsCustomAmount] = useState(false);
-  const [customAmount, setCustomAmount] = useState('');
   
   // Verification state
   const [isEmailSent, setIsEmailSent] = useState(false);
@@ -173,33 +171,14 @@ export const SubscriberOnboardingScreen = () => {
 
   // Complete signup after email verification using our enterprise-grade approach
   const handleCompleteSignup = async () => {
-    if (!email || !password || !name || !phone || !address || !city || !state || !zipCode || !isEmailVerified || (isCustomAmount && !customAmount)) {
+    if (!email || !password || !name || !phone || !address || !city || !state || !zipCode || !isEmailVerified) {
       setError('Please fill in all required fields and verify your email');
       return;
-    }
-
-    // Validate custom amount if selected
-    if (isCustomAmount) {
-      if (!customAmount) {
-        setError('Please enter a custom amount');
-        return;
-      }
-      
-      const amount = parseFloat(customAmount);
-      if (isNaN(amount) || amount <= 0) {
-        setError('Please enter a valid amount greater than 0');
-        return;
-      }
     }
 
     try {
       setIsLoading(true);
       setError(null);
-      
-      // Calculate the final subscription amount
-      const finalAmount = isCustomAmount 
-        ? parseFloat(customAmount) 
-        : parseInt(subscriptionAmount, 10);
       
       // Prepare user data for Cloud Function
       const userData = {
@@ -209,7 +188,12 @@ export const SubscriberOnboardingScreen = () => {
         city,
         state,
         zipCode,
-        subscriptionAmount: finalAmount
+        subscriptionDetails: {
+          tier: 'Free', // Default tier for new users
+          amount: 0,    // No payment yet
+          startDate: new Date().toISOString().split('T')[0],
+          nextPaymentDate: null // No upcoming payment scheduled
+        }
       };
       
       console.log('Starting enterprise-grade signup flow...');
@@ -254,11 +238,13 @@ export const SubscriberOnboardingScreen = () => {
           console.log('User document found in Firestore, profile complete:', userDoc.data());
         }
         
-        // Step 5: Navigate to home screen after successful signup and authentication
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'MainTabs' }],
-        });
+        // Step 5: No need to manually navigate - the AuthContext will detect the authenticated state
+        // and RootNavigator will automatically switch to the AppNavigator
+        // This approach prevents the navigation error and follows proper authentication flow
+        console.log('Signup complete - AuthContext will handle navigation to app screens');
+        
+        // We don't need to do anything else here - the auth state change will trigger
+        // the appropriate navigation in RootNavigator
       } catch (authError) {
         console.error('Post-signup authentication error:', authError);
         setError('Account created but session authentication failed. Please try logging in manually.');
@@ -291,8 +277,8 @@ export const SubscriberOnboardingScreen = () => {
         
         {/* Title - Centered and larger like other screens */}
         <View style={styles.titleContainer}>
-          <Text style={styles.title}>Subscriber Details</Text>
-          <Text style={styles.subtitle}>Complete your profile</Text>
+          <Text style={styles.title}>Complete Your Profile</Text>
+          <Text style={styles.subtitle}>Please provide your information</Text>
         </View>
 
         {/* Form */}
@@ -386,7 +372,7 @@ export const SubscriberOnboardingScreen = () => {
                 {isLoading ? (
                   <ActivityIndicator color={colors.white} size="small" />
                 ) : (
-                  <Text style={styles.verifyEmailButtonText}>Send Code</Text>
+                  <Text style={styles.verifyEmailButtonText}>Verify</Text>
                 )}
               </TouchableOpacity>
             ) : (
@@ -398,59 +384,52 @@ export const SubscriberOnboardingScreen = () => {
           
           {isEmailSent && (
             <View style={styles.verificationCodeContainer}>
-              <Text style={styles.verificationText}>
-                Enter the 6-digit code sent to <Text style={styles.verificationEmail}>{email}</Text>
-              </Text>
-              
-              <View style={styles.codeInputRow}>
+              <Text style={styles.formLabel}>Verification Code</Text>
+              <View style={styles.verificationCodeInputContainer}>
                 <TextInput
-                  style={styles.codeInput}
-                  placeholder="6-digit code"
+                  style={styles.verificationCodeInput}
+                  placeholder="Enter verification code"
                   value={verificationCode}
                   onChangeText={setVerificationCode}
                   keyboardType="number-pad"
                   maxLength={6}
-                  testID="verification-input"
                   editable={!isEmailVerified}
+                  testID="verification-code-input"
                 />
                 
                 <TouchableOpacity 
-                  style={[styles.verifyCodeButton, isEmailVerified && styles.verifiedCodeButton]}
+                  style={[styles.verifyCodeButton, isEmailVerified && styles.disabledButton]}
                   onPress={handleVerifyCode}
-                  disabled={isLoading || verificationCode.length !== 6 || isEmailVerified}
+                  disabled={isLoading || isEmailVerified || !verificationCode}
                   testID="verify-code-button"
                 >
                   {isLoading ? (
                     <ActivityIndicator color={colors.white} size="small" />
                   ) : (
-                    <Text style={styles.verifyCodeButtonText}>
-                      {isEmailVerified ? 'Verified' : 'Verify'}
-                    </Text>
+                    <Text style={styles.verifyCodeButtonText}>{isEmailVerified ? 'Verified' : 'Verify'}</Text>
                   )}
                 </TouchableOpacity>
               </View>
               
               {!isEmailVerified && (
                 <TouchableOpacity 
-                  style={styles.resendButton}
+                  style={styles.resendCodeButton}
                   onPress={handleResendCode}
                   disabled={isLoading}
-                  testID="resend-button"
+                  testID="resend-code-button"
                 >
-                  <Text style={styles.resendButtonText}>Resend Code</Text>
+                  <Text style={styles.resendCodeButtonText}>Resend Code</Text>
                 </TouchableOpacity>
               )}
               
               {verificationError && (
-                <Text style={[styles.verificationMessage, 
-                  verificationError.includes('success') ? styles.successText : 
-                  verificationError.includes('sent') ? styles.infoText : styles.errorText]}>
+                <Text style={[styles.verificationErrorText, isEmailVerified && styles.verificationSuccessText]}>
                   {verificationError}
                 </Text>
               )}
             </View>
           )}
-
+          
           <Text style={styles.formLabel}>Password</Text>
           <TextInput
             style={styles.input}
@@ -460,76 +439,11 @@ export const SubscriberOnboardingScreen = () => {
             secureTextEntry
             testID="password-input"
           />
-
-          <Text style={styles.formLabel}>Monthly Contribution</Text>
-          <View style={styles.amountContainer}>
-            <TouchableOpacity 
-              style={[styles.amountOption, subscriptionAmount === '1' && !isCustomAmount && styles.amountOptionSelected]}
-              onPress={() => {
-                setSubscriptionAmount('1');
-                setIsCustomAmount(false);
-              }}
-              testID="amount-1"
-            >
-              <Text style={[styles.amountText, subscriptionAmount === '1' && !isCustomAmount && styles.amountTextSelected]}>$1</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.amountOption, subscriptionAmount === '5' && !isCustomAmount && styles.amountOptionSelected]}
-              onPress={() => {
-                setSubscriptionAmount('5');
-                setIsCustomAmount(false);
-              }}
-              testID="amount-5"
-            >
-              <Text style={[styles.amountText, subscriptionAmount === '5' && !isCustomAmount && styles.amountTextSelected]}>$5</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.amountOption, subscriptionAmount === '10' && !isCustomAmount && styles.amountOptionSelected]}
-              onPress={() => {
-                setSubscriptionAmount('10');
-                setIsCustomAmount(false);
-              }}
-              testID="amount-10"
-            >
-              <Text style={[styles.amountText, subscriptionAmount === '10' && !isCustomAmount && styles.amountTextSelected]}>$10</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.amountOption, subscriptionAmount === '20' && !isCustomAmount && styles.amountOptionSelected]}
-              onPress={() => {
-                setSubscriptionAmount('20');
-                setIsCustomAmount(false);
-              }}
-              testID="amount-20"
-            >
-              <Text style={[styles.amountText, subscriptionAmount === '20' && !isCustomAmount && styles.amountTextSelected]}>$20</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.customAmountContainer}>
-            <TouchableOpacity 
-              style={[styles.customAmountToggle, isCustomAmount && styles.amountOptionSelected]}
-              onPress={() => setIsCustomAmount(!isCustomAmount)}
-              testID="custom-amount-toggle"
-            >
-              <Text style={[styles.amountText, isCustomAmount && styles.amountTextSelected]}>Custom</Text>
-            </TouchableOpacity>
-            
-            {isCustomAmount && (
-              <View style={styles.customAmountInputContainer}>
-                <Text style={styles.customAmountPrefix}>$</Text>
-                <TextInput
-                  style={styles.customAmountInput}
-                  placeholder="Enter amount"
-                  value={customAmount}
-                  onChangeText={setCustomAmount}
-                  keyboardType="decimal-pad"
-                  testID="custom-amount-input"
-                />
-              </View>
-            )}
+          
+          <View style={styles.privacyContainer}>
+            <Text style={styles.privacyText}>
+              By completing signup, you agree to our Terms of Service and Privacy Policy.
+            </Text>
           </View>
 
           {error && (
@@ -688,84 +602,62 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontSize: typography.fontSizes.smallNote,
   },
-  amountContainer: {
+  verificationCodeInputContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 16,
+    alignItems: 'center',
+    marginBottom: 12,
   },
-  amountOption: {
+  verificationCodeInput: {
     flex: 1,
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 8,
     padding: 12,
-    marginHorizontal: 4,
-    alignItems: 'center',
-  },
-  amountOptionSelected: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
-  },
-  amountText: {
+    marginRight: 8,
     fontSize: typography.fontSizes.body,
-    color: colors.primaryText,
+  },
+  resendCodeButton: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
+  },
+  resendCodeButtonText: {
+    color: colors.accent,
+    fontSize: typography.fontSizes.smallNote,
     fontWeight: '500',
   },
-  amountTextSelected: {
-    color: colors.white,
+  verificationErrorText: {
+    marginTop: 8,
+    fontSize: typography.fontSizes.smallNote,
+    color: colors.error,
   },
-  customAmountContainer: {
-    marginBottom: 16,
+  verificationSuccessText: {
+    color: colors.success,
   },
-  customAmountToggle: {
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    padding: 12,
-    alignItems: 'center',
-    marginBottom: 8,
+  privacyContainer: {
+    marginVertical: 16,
+    paddingHorizontal: 8,
   },
-  customAmountInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    padding: 12,
-  },
-  customAmountPrefix: {
-    fontSize: typography.fontSizes.body,
-    color: colors.primaryText,
-    marginRight: 4,
-  },
-  customAmountInput: {
-    flex: 1,
-    fontSize: typography.fontSizes.body,
-    color: colors.primaryText,
+  privacyText: {
+    fontSize: typography.fontSizes.smallNote,
+    color: colors.secondaryText,
+    textAlign: 'center',
+    lineHeight: 16,
   },
   errorText: {
     color: colors.error,
     marginBottom: 16,
     fontSize: typography.fontSizes.smallNote,
   },
-  successText: {
-    color: colors.success,
-  },
-  infoText: {
-    color: colors.info,
-  },
   submitButton: {
-    backgroundColor: colors.accent,
-    borderRadius: 8,
-    padding: 16,
+    backgroundColor: colors.black,
+    borderRadius: 12,
+    paddingVertical: 16,
     alignItems: 'center',
-    marginTop: 8,
+    justifyContent: 'center',
   },
   disabledButton: {
-    backgroundColor: colors.secondaryText,
+    backgroundColor: colors.neutralBorders,
     opacity: 0.7,
   },
   submitButtonText: {
@@ -783,10 +675,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   verificationRequiredText: {
+    color: colors.accent,
     fontSize: typography.fontSizes.smallNote,
-    color: colors.secondaryText,
-    textAlign: 'center',
     marginTop: 8,
+    textAlign: 'center',
   },
   verificationText: {
     fontSize: typography.fontSizes.smallNote,
@@ -807,12 +699,12 @@ const styles = StyleSheet.create({
   rowContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    width: '100%',
-    marginBottom: 0,
+    marginBottom: 16,
   },
   halfInput: {
-    width: '48%',
-  }
+    flex: 1,
+    marginHorizontal: 4,
+  },
 });
 
-export default SubscriberOnboardingScreen;
+// No default export - we're using named export at the top of the file

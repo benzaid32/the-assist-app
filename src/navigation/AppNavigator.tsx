@@ -17,6 +17,10 @@ import { ApplicantOnboardingScreen } from '../screens/auth/ApplicantOnboardingSc
 import { HomeScreen } from '../screens/app/HomeScreen';
 import SettingsScreen from '../screens/app/settings/SettingsScreen';
 import { DocumentUploadScreen } from '../screens/app/DocumentUploadScreen';
+import SupportInfoScreen from '../screens/app/settings/SupportInfoScreen';
+
+// Premium Features
+import { ImpactDashboard, ResourceLibrary } from '../features/premium';
 
 // Context
 import { useAuth } from '../contexts/AuthContext';
@@ -41,6 +45,9 @@ export type AppStackParamList = {
   SubscriptionManagement: undefined;
   ImpactDetails: undefined;
   Profile: undefined;
+  SupportInfo: undefined;
+  PremiumImpact: undefined;
+  PremiumResources: undefined;
 };
 
 export type MainTabsParamList = {
@@ -150,9 +157,28 @@ const AppNavigator = () => {
         options={{ title: 'Manage Subscription' }}
       />
       <AppStack.Screen 
+        name="SupportInfo" 
+        component={SupportInfoScreen}
+        options={{ 
+          headerShown: false,
+          presentation: 'modal',
+          animationTypeForReplace: 'push'
+        }} 
+      />
+      <AppStack.Screen 
         name="ImpactDetails" 
         component={PlaceholderScreen} 
         options={{ title: 'Your Impact' }}
+      />
+      <AppStack.Screen 
+        name="PremiumImpact" 
+        component={ImpactDashboard}
+        options={{ title: 'Impact Dashboard' }} 
+      />
+      <AppStack.Screen 
+        name="PremiumResources" 
+        component={ResourceLibrary}
+        options={{ title: 'Premium Resources' }} 
       />
       <AppStack.Screen name="Profile" component={SettingsScreen} />
     </AppStack.Navigator>
@@ -201,8 +227,11 @@ export const RootNavigator = () => {
   // Create a React Navigation reference to handle navigation programmatically
   const navigationRef = React.useRef<any>(null);
   
-  // Force refresh on auth state change for more reliable navigation
-  const [key, setKey] = React.useState(0);
+  // React Navigation state update handler
+  const onNavigationStateChange = React.useCallback((state: any) => {
+    // Log navigation state changes for debugging
+    console.log('Navigation state changed');
+  }, []);
   
   React.useEffect(() => {
     if (!isLoading) {
@@ -215,7 +244,6 @@ export const RootNavigator = () => {
         setNavigationState('unauthenticated');
       }
       
-      // Instead of resetting the container, just log the state change
       console.log('Navigation container auth state changed:', navigationState);
     }
   }, [isAuthenticated, isLoading, user, navigationState]);
@@ -253,12 +281,8 @@ export const RootNavigator = () => {
 
   return (
     <NavigationContainer 
-      key={key}
       ref={navigationRef}
-      onStateChange={(state) => {
-        // Log navigation state changes for debugging
-        console.log('Navigation state changed');
-      }}
+      onStateChange={onNavigationStateChange}
     >
       {/* 
         Explicitly use isAuthenticated flag rather than just checking for user object

@@ -19,12 +19,13 @@ The Assist App is a mobile platform that facilitates direct financial assistance
 
 ### For Subscribers
 - Flexible donation tiers ($1, $5, $20 monthly)
-- Impact dashboard showing:
-  - Current tier and total contribution
-  - Monthly funding goal progress
-  - Community impact metrics
+- Premium exclusive content:
+  - Impact Dashboard showing personalized impact metrics
+  - Premium Resource Library with educational content
+  - Community impact tracking with detailed statistics
 - Social sharing capabilities for spreading awareness
 - Community feed with anonymized thank-you messages
+- Seamless subscription management with App Store guidelines compliance
 
 ### For Administrators
 - Secure document review interface
@@ -38,11 +39,15 @@ The Assist App is a mobile platform that facilitates direct financial assistance
 - React Native with Expo (managed workflow)
 - Firebase ecosystem:
   - Firebase Authentication for secure user management
-  - Firestore for database with security rules
+  - Firestore for database with enterprise-grade security rules
   - Firebase Storage for secure document uploads
-  - Firebase Cloud Functions for backend processing
-  - Type-safe database access
-- Stripe API for payment processing
+  - Firebase Cloud Functions with robust error handling and rate limiting
+  - Type-safe database access with integrity checks
+- Stripe API for subscription management with:
+  - Server-side validation
+  - Subscription integrity monitoring
+  - Automated reconciliation with Firestore
+  - Rate limiting for security
 - React Navigation v7 for app navigation
 - Enterprise-grade architecture following MVVM/Clean patterns
 - Type-safe styling with strong accessibility support
@@ -174,12 +179,20 @@ TheAssistApp/
 - Provide clear status indicators for upload progress
 - Handle all error cases with user-friendly messages
 
-## Security
+## Security Considerations
 
-- Implement Firebase Storage rules for secure document uploads
-- Use role-based access control for all operations
-- Encrypt sensitive data in transit and at rest
-- Implement proper authentication and session management
+- All database operations protected by Firebase Security Rules
+- Backend validation of document uploads before storage
+- Advanced subscription security:
+  - Server-side validation against Stripe records
+  - Automated integrity checks every 6 hours
+  - Rate limiting for subscription endpoints
+  - Data consistency validation between systems
+- Secure authentication flows with email verification
+- HTTPS-only API endpoints
+- No sensitive data exposed to clients
+- Document access restricted by user role
+- Payment processing isolated to secure backend
 
 ## Testing
 

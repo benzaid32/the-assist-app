@@ -16,8 +16,8 @@ service cloud.firestore {
 
     function isAdmin() {
       return isAuthenticated() 
-             && (request.auth.token.get('admin', false) 
-             && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+             && request.auth.token.get('admin', false) == true
+             && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     function hasRole(role) {
@@ -33,7 +33,6 @@ service cloud.firestore {
       return request.time.hours() >= 8 && request.time.hours() < 20;
     }
 
-    // ================== DATA VALIDATION FUNCTIONS ==================
     function isValidUserDocument() {
       return request.resource.data.keys().hasOnly([
         'email', 'userType', 'createdAt', 'updatedAt', 
@@ -56,14 +55,27 @@ service cloud.firestore {
              && 'environment' in request.resource.data.metadata;
     }
 
+    // Simplified subscription status validation
+    function isValidStatusTransition(subId) {
+      let newStatus = request.resource.data.subscription.status;
+      let validStatuses = ['inactive', 'active', 'past_due', 'canceled', 'trial'];
+      
+      return validStatuses.hasAny([newStatus]) && 
+             (isSystem() || (request.auth.uid == subId && 
+             (newStatus == 'inactive' || newStatus == 'canceled')));
+    }
+
+    function hasValidStripeMetadata() {
+      return request.resource.data.subscription.stripeSubscriptionId is string &&
+             request.resource.data.subscription.stripePriceId is string &&
+             request.resource.data.subscription.stripeCustomerId is string;
+    }
+
     // ================== COLLECTION RULES ==================
     match /users/{userId} {
       allow create: if isAuthenticated()
                     && request.auth.uid == userId
                     && request.resource.data.userType in ['applicant', 'subscriber'];
-                    // Removed the following constraints that were causing signup failures:
-                    // && isValidUserDocument()
-                    // && withinOperatingHours();
 
       allow read: if isAdmin() 
                    || (isAuthenticated() && request.auth.uid == userId);
@@ -76,13 +88,8 @@ service cloud.firestore {
       
       // Rules for profile subcollection
       match /profile/{profileDoc} {
-        // Allow users to read their own profile data
         allow read: if isAuthenticated() && request.auth.uid == userId;
-        
-        // Allow users to create and update their own profile data
         allow create, update: if isAuthenticated() && request.auth.uid == userId;
-        
-        // Allow deleting profile documents only by the user
         allow delete: if isAuthenticated() && request.auth.uid == userId;
       }
     }
@@ -91,67 +98,77 @@ service cloud.firestore {
       // Allow initial creation during signup OR by system processes
       allow create: if (isAuthenticated() && request.auth.uid == subId) || isSystem();
       
-      // For system processes, enforce strict validation
-      // For user signup, we'll rely on application logic validation
-
       // Allow users to read their own subscriber data or if they're an admin
       allow read: if isAdmin() 
                   || (isAuthenticated() && request.auth.uid == subId);
 
-      // Allow updates by:
-      // 1. The subscriber themselves (for tier changes, profile updates)
-      // 2. System processes (for payment processing, status updates)
-      allow update: if (isAuthenticated() && request.auth.uid == subId) ||
-                    isSystem();
+      // Allow updates by: subscribers themselves (limited) or system processes
+      allow update: if (isSystem() ||
+                     (isAuthenticated() && request.auth.uid == subId && 
+                      isValidStatusTransition(subId))) && 
+                     request.resource.data.subscription.updatedAt is timestamp;
+                       
+      match /subscription/{doc} {
+        allow get: if isAuthenticated() && request.auth.uid == subId;
+      }
+    }
+    
+    match /subscriptionIntegrityLogs/{logId} {
+      allow create: if isSystem();
+      allow read: if isAdmin();
+      allow delete: if false; // Immutable logs - never delete
+    }
+    
+    match /subscriptionIntegrityChecks/{checkId} {
+      allow create: if isSystem();
+      allow read: if isAdmin();
+      allow delete: if false;
+    }
+    
+    match /subscriptionStatusAccesses/{accessId} {
+      allow create: if isSystem() || isAuthenticated();
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow delete: if false;
+    }
+    
+    match /rateLimits/{limitId} {
+      allow read, write: if isSystem();
     }
 
     match /applicants/{applicantId} {
-      // Allow initial creation during signup OR by system processes with proper validation
       allow create: if (isAuthenticated() && request.auth.uid == applicantId) || 
                      (isSystem() && request.resource.data.status == 'PENDING_REVIEW');
 
-      // Allow users to read their own applicant data or if they're an admin
       allow read: if isAdmin() 
                   || (isAuthenticated() && request.auth.uid == applicantId);
 
-      // Allow updates by:
-      // 1. The applicant themselves (for document uploads, profile updates)
-      // 2. Admins (for application status changes, verification)
       allow update: if (isAuthenticated() && request.auth.uid == applicantId) ||
                     isAdmin();
     }
     
     match /verificationCodes/{userId} {
-      // Allow creation during signup
       allow create: if isAuthenticated() && request.auth.uid == userId &&
                     request.resource.data.keys().hasAll(['code', 'email', 'createdAt', 'expiresAt', 'verified']);
       
-      // Allow the user to read their own verification code
       allow read: if isAuthenticated() && request.auth.uid == userId;
       
-      // Allow the user to update their verification status
       allow update: if isAuthenticated() && 
                      ((isAdmin() && resource.data.verified == false) || 
                       (request.auth.uid == userId && resource.data.verified == false));
                     
-      // Allow Cloud Functions to update verification codes (for resending)
       allow write: if isSystem();
     }
 
     match /preVerificationCodes/{verificationId} {
-      // Allow creation without authentication - for email verification pre-signup
       allow create: if request.resource.data.keys().hasAll(['code', 'email', 'userType', 'createdAt', 'expiresAt', 'verified']) && 
                     isValidEmail(request.resource.data.email) && 
                     request.resource.data.verified == false;
                     
-      // Allow reading without authentication - needed to check verification status
       allow read: if true;
       
-      // Allow updating by anyone with the verification ID - for verification confirmation
       allow update: if resource.data.verified == false && 
                     request.resource.data.diff(resource.data).affectedKeys().hasOnly(['verified', 'verifiedAt']);
                     
-      // Allow Cloud Functions to update verification codes (for resending)
       allow write: if isSystem();
     }
 
@@ -199,7 +216,6 @@ service cloud.firestore {
                     ]);
     }
 
-    // ================== SECURITY CONTROLS ==================
     match /fraud_reports/{reportId} {
       allow read: if isAdmin();
       allow write: if false; // Only via Cloud Functions
@@ -210,7 +226,6 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // ================== SAFETY & COMPLIANCE ==================
     match /backups/{backupId} {
       allow read, write: if false; // Managed externally
     }
@@ -219,16 +234,9 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // ================== GLOBAL RULES ==================
+    // Default deny rule
     match /{document=**} {
-      // Global write rate limiting (10 writes/second)
-      function rateLimit() {
-        return request.time > resource.data.lastUpdated + duration.value(1, 's');
-      }
-
-      // Default deny with logging
-      allow read, write: if false 
-                          && debug("Unauthorized access attempt to " + document);
+      allow read, write: if false;
     }
   }
 }
