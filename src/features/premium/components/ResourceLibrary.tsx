@@ -8,7 +8,8 @@ import {
   RefreshControl,
   TouchableOpacity,
   Image,
-  FlatList
+  FlatList,
+  StatusBar
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -207,54 +208,67 @@ export const ResourceLibrary: React.FC = () => {
     }
   };
 
-  // Render subscription upsell if not a subscriber
+  // Render donation upsell if not a donor
   if (!accessLoading && !hasAccess) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          <View style={styles.header}>
-            <Text style={styles.title}>Premium Resources</Text>
-          </View>
-          
-          <Card style={styles.upsellCard}>
+        <StatusBar barStyle="dark-content" />
+        <View style={styles.iosHeader}>
+          <Text style={styles.iosHeaderTitle}>Resource Library</Text>
+        </View>
+        
+        <ScrollView 
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.upsellCard}>
             <View style={styles.upsellContent}>
-              <Ionicons name="library-outline" size={64} color={colors.accent} style={styles.upsellIcon} />
-              <Text style={styles.upsellTitle}>Exclusive Resource Library</Text>
+              <Ionicons name="library-outline" size={48} color="#000000" style={styles.upsellIcon} />
+              <Text style={styles.upsellTitle}>Donor Exclusive Resources</Text>
               <Text style={styles.upsellText}>
-                Become a supporter to access our premium resource library, including guides, 
+                Make a donation to unlock our premium resource library, including guides, 
                 videos, and articles to help you navigate challenging situations.
               </Text>
-              <Button 
-                label="Learn About Supporting" 
-                onPress={() => navigation.navigate('SupportInfo' as never)}
+              <TouchableOpacity 
                 style={styles.upsellButton}
-              />
+                onPress={() => navigation.navigate('SupportInfo' as never)}
+              >
+                <Text style={styles.upsellButtonText}>Learn About Donating</Text>
+              </TouchableOpacity>
             </View>
-          </Card>
+          </View>
           
-          {/* Preview of locked resources */}
-          <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Premium Resources (Locked)</Text>
+          {/* Preview of locked resources - iOS style */}
+          <Text style={styles.sectionTitle}>Resources Available to Donors</Text>
           
           <FlatList
             data={[1, 2, 3]}
             scrollEnabled={false}
             keyExtractor={(item) => `locked-resource-${item}`}
-            renderItem={() => (
-              <Card style={styles.lockedResourceCard}>
+            renderItem={({item}) => (
+              <View style={styles.resourceCard}>
                 <View style={styles.resourceContent}>
                   <View style={styles.resourceThumbnailLocked}>
-                    <Ionicons name="lock-closed" size={24} color={colors.white} />
+                    <Ionicons name="lock-closed" size={24} color="#FFFFFF" />
                   </View>
                   <View style={styles.resourceInfo}>
-                    <Text style={styles.lockedResourceTitle}>Premium Resource</Text>
-                    <Text style={styles.lockedResourceDescription}>
-                      This content is available exclusively to supporters.
+                    <Text style={styles.resourceTitle}>Premium Resource</Text>
+                    <Text style={styles.resourceDescription}>
+                      This content is available exclusively to donors.
                     </Text>
+                    <View style={styles.resourceType}>
+                      <Ionicons name="gift-outline" size={12} color="#8E8E93" style={{marginRight: 4}} />
+                      <Text style={styles.resourceTypeText}>Donor Exclusive</Text>
+                    </View>
                   </View>
                 </View>
-              </Card>
+              </View>
             )}
           />
+          
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>Your donation powers our mission</Text>
+          </View>
         </ScrollView>
       </SafeAreaView>
     );
@@ -263,9 +277,13 @@ export const ResourceLibrary: React.FC = () => {
   if (accessLoading || loading) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
+        <StatusBar barStyle="dark-content" />
+        <View style={styles.iosHeader}>
+          <Text style={styles.iosHeaderTitle}>Resource Library</Text>
+        </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.accent} />
-          <Text style={styles.loadingText}>Loading premium resources...</Text>
+          <ActivityIndicator size="large" color="#000000" />
+          <Text style={styles.loadingText}>Loading resources...</Text>
         </View>
       </SafeAreaView>
     );
@@ -274,15 +292,20 @@ export const ResourceLibrary: React.FC = () => {
   if (error) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
+        <StatusBar barStyle="dark-content" />
+        <View style={styles.iosHeader}>
+          <Text style={styles.iosHeaderTitle}>Resource Library</Text>
+        </View>
         <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle-outline" size={64} color={colors.error} />
+          <Ionicons name="alert-circle-outline" size={64} color="#FF3B30" />
           <Text style={styles.errorTitle}>Unable to Load Resources</Text>
           <Text style={styles.errorText}>{error}</Text>
-          <Button 
-            label="Try Again" 
-            onPress={() => fetchResources()} 
-            style={styles.errorButton} 
-          />
+          <TouchableOpacity 
+            style={styles.retryButton}
+            onPress={() => fetchResources()}
+          >
+            <Text style={styles.retryButtonText}>Try Again</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
@@ -290,20 +313,30 @@ export const ResourceLibrary: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <StatusBar barStyle="dark-content" />
+      <View style={styles.iosHeader}>
+        <Text style={styles.iosHeaderTitle}>Resource Library</Text>
+      </View>
+      
       <ScrollView 
         contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={handleRefresh} 
+            tintColor="#000000"
+          />
         }
+        showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <Text style={styles.title}>Premium Resources</Text>
-          <Text style={styles.subtitle}>
-            Exclusive content for our supporters
+        <View style={styles.headerSection}>
+          <Text style={styles.headerTitle}>Donor Resources</Text>
+          <Text style={styles.headerSubtitle}>
+            Exclusive content made possible by your donation
           </Text>
         </View>
         
-        {/* Category filters */}
+        {/* Category filters - iOS style */}
         <ScrollView 
           horizontal 
           showsHorizontalScrollIndicator={false}
@@ -328,62 +361,68 @@ export const ResourceLibrary: React.FC = () => {
           ))}
         </ScrollView>
         
-        {/* Resources list */}
+        {/* Resources list - iOS style */}
         <View style={styles.resourcesContainer}>
           {filteredResources.length === 0 ? (
             <View style={styles.emptyState}>
+              <Ionicons name="document-outline" size={32} color="#8E8E93" />
               <Text style={styles.emptyStateText}>
-                No resources found in this category.
+                No resources found in this category
               </Text>
             </View>
           ) : (
             filteredResources.map(resource => (
               <TouchableOpacity
                 key={resource.id}
+                style={styles.resourceCard}
                 onPress={() => handleResourcePress(resource)}
+                activeOpacity={0.7}
               >
-                <Card style={styles.resourceCard}>
-                  <View style={styles.resourceContent}>
-                    <View style={styles.resourceThumbnail}>
-                      {resource.thumbnail ? (
-                        <Image 
-                          source={{ uri: resource.thumbnail }} 
-                          style={styles.thumbnailImage} 
+                <View style={styles.resourceContent}>
+                  <View style={styles.resourceThumbnail}>
+                    {resource.thumbnail ? (
+                      <Image 
+                        source={{ uri: resource.thumbnail }} 
+                        style={styles.thumbnailImage}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <View style={styles.thumbnailPlaceholder}>
+                        <Ionicons 
+                          name={getResourceTypeIcon(resource.type)} 
+                          size={24} 
+                          color="#FFFFFF"
                         />
-                      ) : (
-                        <View style={styles.thumbnailPlaceholder}>
-                          <Ionicons 
-                            name={getResourceTypeIcon(resource.type)} 
-                            size={24} 
-                            color={colors.white} 
-                          />
-                        </View>
-                      )}
-                    </View>
-                    <View style={styles.resourceInfo}>
-                      <Text style={styles.resourceTitle}>{resource.title}</Text>
-                      <Text style={styles.resourceDescription} numberOfLines={2}>
-                        {resource.description}
-                      </Text>
-                      <View style={styles.resourceMeta}>
-                        <View style={styles.resourceType}>
-                          <Ionicons 
-                            name={getResourceTypeIcon(resource.type)} 
-                            size={14} 
-                            color={colors.primaryText} 
-                            style={styles.resourceTypeIcon} 
-                          />
-                          <Text style={styles.resourceTypeText}>
-                            {resource.type.charAt(0).toUpperCase() + resource.type.slice(1)}
-                          </Text>
-                        </View>
+                      </View>
+                    )}
+                  </View>
+                  <View style={styles.resourceInfo}>
+                    <Text style={styles.resourceTitle}>{resource.title}</Text>
+                    <Text style={styles.resourceDescription} numberOfLines={2}>
+                      {resource.description}
+                    </Text>
+                    <View style={styles.resourceMeta}>
+                      <View style={styles.resourceType}>
+                        <Ionicons 
+                          name={getResourceTypeIcon(resource.type)} 
+                          size={14} 
+                          color="#8E8E93" 
+                          style={styles.resourceTypeIcon} 
+                        />
+                        <Text style={styles.resourceTypeText}>
+                          {resource.type.charAt(0).toUpperCase() + resource.type.slice(1)}
+                        </Text>
                       </View>
                     </View>
                   </View>
-                </Card>
+                </View>
               </TouchableOpacity>
             ))
           )}
+        </View>
+        
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>Thank you for your support</Text>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -393,63 +432,96 @@ export const ResourceLibrary: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#F2F2F7', // iOS default background
   },
   scrollContent: {
     padding: 16,
     paddingBottom: 32,
   },
-  header: {
+  
+  // iOS header styles
+  iosHeader: {
+    height: 44,
+    backgroundColor: '#F2F2F7',
+    borderBottomWidth: 0.5,
+    borderBottomColor: 'rgba(0,0,0,0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  iosHeaderTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#000000',
+  },
+  headerSection: {
     marginBottom: 20,
   },
-  title: {
-    fontFamily: typography.fonts.bold,
-    fontSize: typography.fontSizes.sectionHeading,
-    color: colors.black,
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#000000',
     marginBottom: 4,
   },
-  subtitle: {
-    fontFamily: typography.fonts.regular,
-    fontSize: typography.fontSizes.body,
-    color: colors.primaryText,
+  headerSubtitle: {
+    fontSize: 16,
+    color: '#000000', // Changed from '#8E8E93'
+    lineHeight: 22,
   },
+  
+  // Section styles
   sectionTitle: {
-    fontFamily: typography.fonts.semibold,
-    fontSize: typography.fontSizes.title3,
-    color: colors.black,
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#000000',
     marginBottom: 12,
+    marginTop: 16,
   },
+  
+  // Category filters - iOS style
   categoriesContainer: {
     flexDirection: 'row',
-    paddingVertical: 16,
+    paddingVertical: 12,
   },
   categoryButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
     marginRight: 8,
-    borderRadius: 16,
-    backgroundColor: colors.background,
+    borderRadius: 14,
+    backgroundColor: '#F2F2F7',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: '#E5E5EA', // iOS light gray
   },
   categoryButtonSelected: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
+    backgroundColor: '#000000', // iOS blue
+    borderColor: '#000000',
   },
   categoryButtonText: {
-    fontFamily: typography.fonts.medium,
-    fontSize: typography.fontSizes.smallNote,
-    color: colors.primaryText,
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#000000',
+  },
+  projectButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#000000',
   },
   categoryButtonTextSelected: {
-    color: colors.white,
+    color: '#FFFFFF',
   },
+  
+  // Resource list styles - iOS
   resourcesContainer: {
     marginTop: 8,
   },
   resourceCard: {
     marginBottom: 12,
-    padding: 0,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 1,
+    elevation: 1,
     overflow: 'hidden',
   },
   resourceContent: {
@@ -458,7 +530,7 @@ const styles = StyleSheet.create({
   resourceThumbnail: {
     width: 100,
     height: 100,
-    backgroundColor: colors.border,
+    backgroundColor: '#E5E5EA',
   },
   thumbnailImage: {
     width: '100%',
@@ -467,7 +539,7 @@ const styles = StyleSheet.create({
   thumbnailPlaceholder: {
     width: '100%',
     height: '100%',
-    backgroundColor: colors.accent,
+    backgroundColor: '#000000',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -476,16 +548,16 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   resourceTitle: {
-    fontFamily: typography.fonts.bold,
-    fontSize: typography.fontSizes.body,
-    color: colors.black,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000000',
     marginBottom: 4,
   },
   resourceDescription: {
-    fontFamily: typography.fonts.regular,
-    fontSize: typography.fontSizes.smallNote,
-    color: colors.primaryText,
+    fontSize: 14,
+    color: '#8E8E93',
     marginBottom: 8,
+    lineHeight: 18,
   },
   resourceMeta: {
     flexDirection: 'row',
@@ -500,56 +572,82 @@ const styles = StyleSheet.create({
     marginRight: 4,
   },
   resourceTypeText: {
-    fontFamily: typography.fonts.medium,
     fontSize: 12,
-    color: colors.primaryText,
+    color: '#8E8E93',
   },
+  
+  // Empty state - iOS style
   emptyState: {
-    padding: 32,
     alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
   },
   emptyStateText: {
-    fontFamily: typography.fonts.regular,
-    fontSize: typography.fontSizes.body,
-    color: colors.secondaryText,
+    fontSize: 16,
+    color: '#8E8E93',
     textAlign: 'center',
+    marginTop: 12,
   },
+  
+  // Loading state - iOS style
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#F2F2F7',
   },
   loadingText: {
-    fontFamily: typography.fonts.regular,
-    fontSize: typography.fontSizes.body,
-    color: colors.primaryText,
-    marginTop: 16,
+    fontSize: 16,
+    color: '#8E8E93',
+    marginTop: 12,
   },
+  
+  // Error state - iOS style
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
+    backgroundColor: '#F2F2F7',
   },
   errorTitle: {
-    fontFamily: typography.fonts.bold,
-    fontSize: typography.fontSizes.title3,
-    color: colors.black,
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#000000',
     marginTop: 16,
     marginBottom: 8,
+    textAlign: 'center',
   },
   errorText: {
-    fontFamily: typography.fonts.regular,
-    fontSize: typography.fontSizes.body,
-    color: colors.primaryText,
+    fontSize: 16,
+    color: '#8E8E93', 
     textAlign: 'center',
     marginBottom: 24,
+    lineHeight: 22,
   },
-  errorButton: {
-    minWidth: 120,
+  retryButton: {
+    backgroundColor: '#000000',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 10,
   },
+  retryButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  
+  // Upsell card - iOS style
   upsellCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
     marginVertical: 16,
+    padding: 0,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
   },
   upsellContent: {
     padding: 24,
@@ -559,45 +657,52 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   upsellTitle: {
-    fontFamily: typography.fonts.bold,
-    fontSize: typography.fontSizes.title3,
-    color: colors.black,
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#000000',
     marginBottom: 12,
     textAlign: 'center',
   },
   upsellText: {
-    fontFamily: typography.fonts.regular,
-    fontSize: typography.fontSizes.body,
-    color: colors.primaryText,
+    fontSize: 16,
+    color: '#8E8E93',
     textAlign: 'center',
     marginBottom: 24,
+    lineHeight: 22,
   },
   upsellButton: {
-    minWidth: 220,
+    backgroundColor: '#000000',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 10,
+    width: '100%',
+    alignItems: 'center',
   },
-  lockedResourceCard: {
-    marginBottom: 12,
-    padding: 0,
-    overflow: 'hidden',
-    opacity: 0.7,
+  upsellButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
+  
+  // Locked resource styles
   resourceThumbnailLocked: {
-    width: 100,
-    height: 100,
-    backgroundColor: colors.secondaryText,
+    width: 80,
+    height: 80,
+    backgroundColor: '#000000',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  lockedResourceTitle: {
-    fontFamily: typography.fonts.medium,
-    fontSize: typography.fontSizes.body,
-    color: colors.secondaryText,
-    marginBottom: 4,
+  
+  // Footer
+  footer: {
+    padding: 16,
+    alignItems: 'center',
+    marginTop: 16,
   },
-  lockedResourceDescription: {
-    fontFamily: typography.fonts.regular,
-    fontSize: typography.fontSizes.smallNote,
-    color: colors.secondaryText,
+  footerText: {
+    fontSize: 13,
+    color: '#8E8E93',
+    textAlign: 'center',
   },
 });
 

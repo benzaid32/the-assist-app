@@ -8,6 +8,8 @@ import NotFound from "./pages/NotFound";
 import AdminDashboard from "./admin/pages/AdminDashboard";
 import AdminApplicants from "./admin/pages/AdminApplicants";
 import AdminPayments from "./admin/pages/AdminPayments";
+import AdminDonorFeed from "./admin/pages/AdminDonorFeed";
+import AdminSupportNetwork from "./admin/pages/AdminSupportNetwork";
 import AdminLayout from "./admin/layouts/AdminLayout";
 import AdminAuth from "./admin/pages/AdminAuth";
 import AuthProvider from "./admin/context/AuthContext";
@@ -36,6 +38,8 @@ const App = () => (
               <Route index element={<AdminDashboard />} />
               <Route path="applicants" element={<AdminApplicants />} />
               <Route path="payments" element={<AdminPayments />} />
+              <Route path="donor-feed" element={<AdminDonorFeed />} />
+              <Route path="support-network" element={<AdminSupportNetwork />} />
             </Route>
             
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

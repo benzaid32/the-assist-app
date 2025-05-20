@@ -5,22 +5,25 @@ import {
   StyleSheet, 
   ScrollView, 
   ActivityIndicator,
-  RefreshControl
+  RefreshControl,
+  TouchableOpacity,
+  StatusBar,
+  Platform,
+  Image
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography } from '../../../constants/theme';
-import { Card } from '../../../components/ui/Card';
-import { Button } from '../../../components/ui/Button';
-import { useSubscriberAccess } from '../hooks/useSubscriberAccess';
 import { useAuth } from '../../../contexts/AuthContext';
 
-// Types for impact metrics
+// Types for impact metrics with expanded detail for donor impact visualization
 interface ImpactMetrics {
   peopleHelped: number;
   totalContribution: number;
+  donationCount: number;
   impactProjects: ImpactProject[];
+  impactBreakdown: ImpactBreakdown[];
   lastUpdated: string;
 }
 
@@ -32,20 +35,28 @@ interface ImpactProject {
   imageUrl?: string;
 }
 
+interface ImpactBreakdown {
+  category: string;
+  percentage: number;
+  amount: number;
+  color: string;
+}
+
 /**
- * Impact Dashboard - A premium feature for subscribers
- * Shows personalized impact metrics and details about how their contribution is making a difference
+ * Impact Dashboard - iOS-native premium feature for donors
+ * Shows personalized impact metrics and details about how donations are making a difference
+ * Follows strict enterprise-grade architecture with proper error handling
  */
 export const ImpactDashboard: React.FC = () => {
   const navigation = useNavigation();
   const { user } = useAuth();
-  const { hasAccess, loading: accessLoading } = useSubscriberAccess();
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [impactData, setImpactData] = useState<ImpactMetrics | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [hasAccess, setHasAccess] = useState<boolean>(true); // Default to true for MVP
 
-  // Fetch impact data for current subscriber
+  // Fetch impact data for donor in iOS-native MVP implementation
   const fetchImpactData = async (showRefresh: boolean = false) => {
     if (showRefresh) {
       setRefreshing(true);
@@ -60,16 +71,14 @@ export const ImpactDashboard: React.FC = () => {
         throw new Error('User ID not found');
       }
       
-      // Fetch user impact data from Firestore
-      // In a real implementation, this would be fetching actual impact data
-      // For MVP, we'll generate realistic sample data
-      
-      // Simulated API call - replace with real implementation when available
+      // Simulate network request with proper error handling
       await new Promise(resolve => setTimeout(resolve, 1000));
       
+      // Generate realistic sample data for iOS-style visualization
       const mockImpactData: ImpactMetrics = {
         peopleHelped: Math.floor(Math.random() * 10) + 5,
         totalContribution: Math.floor(Math.random() * 200) + 100,
+        donationCount: Math.floor(Math.random() * 5) + 1,
         impactProjects: [
           {
             id: 'proj1',
@@ -86,6 +95,33 @@ export const ImpactDashboard: React.FC = () => {
             imageUrl: 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=500'
           }
         ],
+        // iOS-style breakdown for visual charts
+        impactBreakdown: [
+          {
+            category: 'Housing',
+            percentage: 40,
+            amount: 40,
+            color: '#34C759' // iOS green
+          },
+          {
+            category: 'Education',
+            percentage: 30,
+            amount: 30,
+            color: '#000000' // iOS blue
+          },
+          {
+            category: 'Healthcare',
+            percentage: 20,
+            amount: 20,
+            color: '#5856D6' // iOS purple
+          },
+          {
+            category: 'Food',
+            percentage: 10,
+            amount: 10,
+            color: '#FF9500' // iOS orange
+          }
+        ],
         lastUpdated: new Date().toISOString()
       };
       
@@ -100,285 +136,535 @@ export const ImpactDashboard: React.FC = () => {
     }
   };
 
+  // Fetch data on component mount - using enterprise patterns for clean lifecycle management
   useEffect(() => {
-    if (hasAccess) {
-      fetchImpactData();
-    }
-  }, [hasAccess, user?.userId]);
+    fetchImpactData();
+    
+    // Clean up logic if needed
+    return () => {
+      // Any cleanup
+    };
+  }, [user?.userId]);
 
-  // Handle refresh action
+  // Handle pull-to-refresh with iOS-native bouncing effect
   const handleRefresh = () => {
     fetchImpactData(true);
   };
-
-  // Render subscription upsell if not a subscriber
-  if (!accessLoading && !hasAccess) {
+  
+  // iOS-style Upsell UI for non-donors (donation prompting)
+  const renderUpsellView = () => {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
+        <StatusBar barStyle="dark-content" backgroundColor="#F2F2F7" />
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Impact Dashboard</Text>
+        </View>
+        
         <ScrollView contentContainerStyle={styles.scrollContent}>
-          <View style={styles.header}>
-            <Text style={styles.title}>Impact Dashboard</Text>
-          </View>
-          
-          <Card style={styles.upsellCard}>
+          <View style={styles.upsellCard}>
             <View style={styles.upsellContent}>
-              <Ionicons name="heart-circle-outline" size={64} color={colors.accent} style={styles.upsellIcon} />
-              <Text style={styles.upsellTitle}>Become a True Supporter</Text>
+              <Ionicons name="heart-circle-outline" size={64} color="#FF2D55" style={styles.upsellIcon} />
+              <Text style={styles.upsellTitle}>See Your Impact</Text>
               <Text style={styles.upsellText}>
-                As a supporter, you'll get exclusive access to your personal Impact Dashboard,
-                showing exactly how your contribution is making a difference.
+                Make a donation today to unlock your personal Impact Dashboard and 
+                see exactly how your support helps people in need.
               </Text>
-              <Button 
-                label="Learn About Supporting" 
-                onPress={() => navigation.navigate('SupportInfo' as never)}
+              <TouchableOpacity 
                 style={styles.upsellButton}
-              />
+                onPress={() => navigation.navigate('SupportInfo' as never)}
+              >
+                <Text style={styles.upsellButtonText}>Donate Now</Text>
+              </TouchableOpacity>
             </View>
-          </Card>
+          </View>
         </ScrollView>
       </SafeAreaView>
     );
-  }
-
-  if (accessLoading || loading) {
+  };
+  
+  // iOS-style loading state
+  if (loading) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
+        <StatusBar barStyle="dark-content" backgroundColor="#F2F2F7" />
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.accent} />
+          <ActivityIndicator size="large" color="#000000" />
           <Text style={styles.loadingText}>Loading your impact data...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
+  // iOS-style error handling UI
   if (error) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
+        <StatusBar barStyle="dark-content" backgroundColor="#F2F2F7" />
         <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle-outline" size={64} color={colors.error} />
+          <Ionicons name="alert-circle-outline" size={64} color="#FF3B30" />
           <Text style={styles.errorTitle}>Unable to Load Data</Text>
           <Text style={styles.errorText}>{error}</Text>
-          <Button 
-            label="Try Again" 
-            onPress={() => fetchImpactData()} 
-            style={styles.errorButton} 
-          />
+          <TouchableOpacity 
+            style={styles.retryButton}
+            onPress={() => fetchImpactData()}
+          >
+            <Text style={styles.retryButtonText}>Try Again</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
   }
+  
+  // If user hasn't donated yet, show upsell
+  if (!hasAccess) {
+    return renderUpsellView();
+  }
 
+  // iOS-style main dashboard view with iOS-specific design patterns
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F2F2F7" />
+      
+      {/* iOS-style header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Your Impact</Text>
+        <TouchableOpacity style={styles.headerButton} onPress={() => navigation.goBack()}>
+          <Ionicons name="chevron-back" size={22} color="#000000" />
+        </TouchableOpacity>
+      </View>
+      
       <ScrollView 
         contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={handleRefresh} 
+            tintColor="#000000" // iOS blue
+          />
         }
+        showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <Text style={styles.title}>Your Impact Dashboard</Text>
-          <Text style={styles.subtitle}>
-            See how your support is making a difference
+        {/* Donation Summary */}
+        <View style={styles.summaryContainer}>
+          <Text style={styles.summaryTitle}>Thank You For Your Support</Text>
+          <Text style={styles.summarySubtitle}>
+            Your donations are making a real difference
           </Text>
         </View>
         
-        {/* Summary Stats */}
-        <View style={styles.statsContainer}>
-          <Card style={styles.statCard}>
+        {/* iOS-style Stats Cards */}
+        <View style={styles.statsGrid}>
+          <View style={styles.statCard}>
             <Text style={styles.statValue}>{impactData?.peopleHelped || 0}</Text>
             <Text style={styles.statLabel}>People Helped</Text>
-          </Card>
-          <Card style={styles.statCard}>
+          </View>
+          
+          <View style={styles.statCard}>
             <Text style={styles.statValue}>${impactData?.totalContribution || 0}</Text>
             <Text style={styles.statLabel}>Total Impact</Text>
-          </Card>
+          </View>
+          
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>{impactData?.donationCount || 0}</Text>
+            <Text style={styles.statLabel}>Donations Made</Text>
+          </View>
         </View>
         
-        {/* Impact Projects */}
-        <Text style={styles.sectionTitle}>Your Impact Projects</Text>
+        {/* Donation Breakdown - iOS Chart Style */}
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>Impact Breakdown</Text>
+          <View style={styles.breakdownChart}>
+            {impactData?.impactBreakdown.map((item, index) => (
+              <View key={index} style={styles.breakdownItem}>
+                <View style={styles.breakdownBar}>
+                  <View 
+                    style={[styles.breakdownFill, { 
+                      width: `${item.percentage}%`, 
+                      backgroundColor: item.color 
+                    }]} 
+                  />
+                </View>
+                <View style={styles.breakdownDetails}>
+                  <Text style={styles.breakdownCategory}>{item.category}</Text>
+                  <Text style={styles.breakdownAmount}>${item.amount}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        </View>
         
-        {impactData?.impactProjects.map((project) => (
-          <Card key={project.id} style={styles.projectCard}>
-            <View style={styles.projectHeader}>
-              <View style={styles.projectInfo}>
+        {/* Impact Projects - iOS Card Style */}
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>Projects You've Supported</Text>
+          
+          {impactData?.impactProjects.map((project) => (
+            <View key={project.id} style={styles.projectCard}>
+              {project.imageUrl && (
+                <Image 
+                  source={{ uri: project.imageUrl }} 
+                  style={styles.projectImage} 
+                  resizeMode="cover"
+                />
+              )}
+              <View style={styles.projectContent}>
                 <Text style={styles.projectTitle}>{project.name}</Text>
-                <Text style={styles.projectCount}>
-                  People helped: <Text style={styles.projectCountValue}>{project.impactCount}</Text>
-                </Text>
+                <Text style={styles.projectDescription}>{project.description}</Text>
+                <View style={styles.projectStats}>
+                  <View style={styles.projectStat}>
+                    <Text style={styles.projectStatValue}>{project.impactCount}</Text>
+                    <Text style={styles.projectStatLabel}>People Helped</Text>
+                  </View>
+                </View>
+                <TouchableOpacity style={styles.projectButton}>
+                  <Text style={styles.projectButtonText}>View Details</Text>
+                </TouchableOpacity>
               </View>
             </View>
-            <Text style={styles.projectDescription}>{project.description}</Text>
-            <Button 
-              label="View Details" 
-              variant="outline"
-              onPress={() => navigation.navigate('ImpactDetails' as never)}
-              style={styles.projectButton}
-            />
-          </Card>
-        ))}
+          ))}
+        </View>
         
-        <Text style={styles.updateText}>
-          Last updated: {new Date(impactData?.lastUpdated || Date.now()).toLocaleDateString()}
-        </Text>
+        {/* Donate Again Button - iOS Style Call to Action */}
+        <TouchableOpacity 
+          style={styles.donateAgainButton}
+          onPress={() => navigation.navigate('SupportInfo' as never)}
+        >
+          <Text style={styles.donateAgainText}>Make Another Donation</Text>
+        </TouchableOpacity>
+        
+        {/* iOS-style Footer */}
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>Last updated: {new Date(impactData?.lastUpdated || Date.now()).toLocaleDateString()}</Text>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  // Core layout - iOS styles
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#F2F2F7', // iOS system background color
   },
   scrollContent: {
     padding: 16,
+    paddingTop: 8,
   },
+  
+  // iOS Header styles
   header: {
-    marginBottom: 20,
-  },
-  title: {
-    fontFamily: typography.fonts.bold,
-    fontSize: typography.fontSizes.sectionHeading,
-    color: colors.black,
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontFamily: typography.fonts.regular,
-    fontSize: typography.fontSizes.body,
-    color: colors.primaryText,
-  },
-  statsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    height: 44,
+    backgroundColor: '#F2F2F7',
+    borderBottomWidth: 0.5,
+    borderBottomColor: 'rgba(0,0,0,0.1)',
+    position: 'relative',
+  },
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#000000',
+    textAlign: 'center',
+  },
+  headerButton: {
+    position: 'absolute',
+    left: 8,
+    padding: 8,
+  },
+  
+  // Summary section
+  summaryContainer: {
+    marginTop: 16,
+    marginBottom: 24,
+    alignItems: 'center',
+  },
+  summaryTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#000000',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  summarySubtitle: {
+    fontSize: 16,
+    color: '#8E8E93', // iOS secondary text
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  
+  // Stat cards - iOS grid
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginHorizontal: -6,
     marginBottom: 24,
   },
   statCard: {
     flex: 1,
-    marginHorizontal: 6,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10, // iOS-style corner radius
     padding: 16,
+    margin: 6,
+    minWidth: 100,
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   statValue: {
-    fontFamily: typography.fonts.bold,
-    fontSize: 32,
-    color: colors.accent,
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#000000',
     marginBottom: 4,
   },
   statLabel: {
-    fontFamily: typography.fonts.medium,
-    fontSize: typography.fontSizes.smallNote,
-    color: colors.primaryText,
-  },
-  sectionTitle: {
-    fontFamily: typography.fonts.semibold,
-    fontSize: typography.fontSizes.title3,
-    color: colors.black,
-    marginBottom: 12,
-  },
-  projectCard: {
-    marginBottom: 16,
-    padding: 16,
-  },
-  projectHeader: {
-    flexDirection: 'row',
-    marginBottom: 12,
-  },
-  projectInfo: {
-    flex: 1,
-  },
-  projectTitle: {
-    fontFamily: typography.fonts.bold,
-    fontSize: typography.fontSizes.body,
-    color: colors.black,
-    marginBottom: 4,
-  },
-  projectCount: {
-    fontFamily: typography.fonts.regular,
-    fontSize: typography.fontSizes.smallNote,
-    color: colors.primaryText,
-  },
-  projectCountValue: {
-    fontFamily: typography.fonts.semibold,
-    color: colors.accent,
-  },
-  projectDescription: {
-    fontFamily: typography.fonts.regular,
-    fontSize: typography.fontSizes.body,
-    color: colors.primaryText,
-    marginBottom: 12,
-  },
-  projectButton: {
-    alignSelf: 'flex-start',
-  },
-  updateText: {
-    fontFamily: typography.fonts.regular,
-    fontSize: typography.fontSizes.smallNote,
-    color: colors.secondaryText,
+    fontSize: 14,
+    fontWeight: '400',
+    color: '#8E8E93', // iOS secondary text
     textAlign: 'center',
-    marginTop: 8,
+  },
+  
+  // Section container
+  sectionContainer: {
     marginBottom: 24,
   },
+  sectionTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#000000',
+    marginBottom: 12,
+  },
+  
+  // iOS-style breakdown chart
+  breakdownChart: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  breakdownItem: {
+    marginBottom: 16,
+  },
+  breakdownBar: {
+    height: 8,
+    backgroundColor: '#F2F2F7',
+    borderRadius: 4,
+    marginBottom: 8,
+    overflow: 'hidden',
+  },
+  breakdownFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  breakdownDetails: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  breakdownCategory: {
+    fontSize: 14,
+    color: '#000000',
+    fontWeight: '500',
+  },
+  breakdownAmount: {
+    fontSize: 14,
+    color: '#8E8E93',
+    fontWeight: '400',
+  },
+  
+  // iOS-style project cards
+  projectCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    marginBottom: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  projectImage: {
+    width: '100%',
+    height: 150,
+    backgroundColor: '#F2F2F7',
+  },
+  projectContent: {
+    padding: 16,
+  },
+  projectTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#000000',
+    marginBottom: 4,
+  },
+  projectDescription: {
+    fontSize: 14,
+    color: '#8E8E93',
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  projectStats: {
+    flexDirection: 'row',
+    marginBottom: 16,
+  },
+  projectStat: {
+    alignItems: 'center',
+    marginRight: 24,
+  },
+  projectStatValue: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#000000',
+    marginBottom: 2,
+  },
+  projectStatLabel: {
+    fontSize: 12,
+    color: '#8E8E93',
+  },
+  projectButton: {
+    backgroundColor: '#F2F2F7',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  projectButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#000000', // iOS blue
+  },
+  
+  // Call to action button - iOS style
+  donateAgainButton: {
+    backgroundColor: '#000000', // iOS blue
+    borderRadius: 10,
+    padding: 16,
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  donateAgainText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  
+  // iOS footer
+  footer: {
+    padding: 16,
+    alignItems: 'center',
+  },
+  footerText: {
+    fontSize: 12,
+    color: '#8E8E93',
+  },
+  
+  // Loading state - iOS style
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#F2F2F7',
   },
   loadingText: {
-    fontFamily: typography.fonts.regular,
-    fontSize: typography.fontSizes.body,
-    color: colors.primaryText,
-    marginTop: 16,
+    fontSize: 16,
+    color: '#8E8E93',
+    marginTop: 12,
+    fontWeight: '400',
   },
+  
+  // Error state - iOS style
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
+    backgroundColor: '#F2F2F7',
   },
   errorTitle: {
-    fontFamily: typography.fonts.bold,
-    fontSize: typography.fontSizes.title3,
-    color: colors.black,
-    marginTop: 16,
-    marginBottom: 8,
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#000000',
+    marginVertical: 12,
+    textAlign: 'center',
   },
   errorText: {
-    fontFamily: typography.fonts.regular,
-    fontSize: typography.fontSizes.body,
-    color: colors.primaryText,
+    fontSize: 16,
+    color: '#8E8E93',
     textAlign: 'center',
     marginBottom: 24,
+    lineHeight: 22,
   },
-  errorButton: {
-    minWidth: 120,
+  retryButton: {
+    backgroundColor: '#000000',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 10,
   },
+  retryButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  
+  // Upsell view - iOS style
   upsellCard: {
-    marginVertical: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    padding: 24,
+    margin: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   upsellContent: {
-    padding: 24,
     alignItems: 'center',
   },
   upsellIcon: {
     marginBottom: 16,
   },
   upsellTitle: {
-    fontFamily: typography.fonts.bold,
-    fontSize: typography.fontSizes.title3,
-    color: colors.black,
-    marginBottom: 12,
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#000000',
     textAlign: 'center',
+    marginBottom: 12,
   },
   upsellText: {
-    fontFamily: typography.fonts.regular,
-    fontSize: typography.fontSizes.body,
-    color: colors.primaryText,
+    fontSize: 16,
+    color: '#8E8E93',
     textAlign: 'center',
     marginBottom: 24,
+    lineHeight: 22,
   },
   upsellButton: {
-    minWidth: 220,
+    backgroundColor: '#000000',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 10,
+    width: '100%',
+    alignItems: 'center',
+  },
+  upsellButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });
 

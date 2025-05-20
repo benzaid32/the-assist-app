@@ -3,7 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Platform } from 'react-native';
 
 // Auth Screens
 import { LoginScreen } from '../screens/auth/LoginScreen';
@@ -18,9 +18,16 @@ import { HomeScreen } from '../screens/app/HomeScreen';
 import SettingsScreen from '../screens/app/settings/SettingsScreen';
 import { DocumentUploadScreen } from '../screens/app/DocumentUploadScreen';
 import SupportInfoScreen from '../screens/app/settings/SupportInfoScreen';
+import DonorCircleScreen from '../screens/app/DonorCircleScreen';
+import SupportNetworkScreen from '../screens/app/SupportNetworkScreen';
 
 // Premium Features
 import { ImpactDashboard, ResourceLibrary } from '../features/premium';
+
+// Community Features
+import DonorFeed from '../features/community/components/DonorFeed';
+import ResourceHub from '../features/community/components/ResourceHub';
+import CommunityQA from '../features/community/components/CommunityQA';
 
 // Context
 import { useAuth } from '../contexts/AuthContext';
@@ -61,23 +68,35 @@ const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const AppStack = createNativeStackNavigator<AppStackParamList>();
 const MainTabs = createBottomTabNavigator<MainTabsParamList>();
 
-// Main tabs navigator
+// Main tabs navigator with iOS-native styling
 const MainTabsNavigator = () => {
   return (
     <MainTabs.Navigator
       screenOptions={{
-        tabBarActiveTintColor: colors.black,
-        tabBarInactiveTintColor: colors.secondaryText,
+        tabBarActiveTintColor: colors.accent.primary,
+        tabBarInactiveTintColor: colors.text.secondary,
         tabBarStyle: {
           borderTopWidth: 1,
-          borderTopColor: colors.border,
-          height: 60,
-          paddingBottom: 8,
+          borderTopColor: colors.border.light,
+          height: Platform.OS === 'ios' ? 88 : 60, // Taller for iOS to accommodate home indicator
+          paddingBottom: Platform.OS === 'ios' ? 28 : 8,
           paddingTop: 8,
+          ...Platform.select({
+            ios: {
+              shadowColor: colors.border.strong,
+              shadowOffset: { width: 0, height: -2 },
+              shadowOpacity: 0.05,
+              shadowRadius: 2,
+            },
+            android: {
+              elevation: 8,
+            },
+          }),
         },
         tabBarLabelStyle: {
           fontFamily: typography.fonts.medium,
-          fontSize: 12,
+          fontSize: 10,
+          marginTop: 0,
         },
         headerShown: false,
       }}
@@ -85,18 +104,26 @@ const MainTabsNavigator = () => {
       <MainTabs.Screen
         name="Home"
         component={HomeScreen}
-        options={{
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home-outline" color={color} size={size} />
+        options={({ route }) => ({
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons 
+              name={focused ? "home" : "home-outline"} 
+              color={color} 
+              size={24} 
+            />
           ),
-        }}
+        })}
       />
       <MainTabs.Screen
         name="Community"
         component={CommunityScreen}
         options={{
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="people-outline" color={color} size={size} />
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons 
+              name={focused ? "people" : "people-outline"} 
+              color={color} 
+              size={24} 
+            />
           ),
         }}
       />
@@ -104,8 +131,12 @@ const MainTabsNavigator = () => {
         name="Settings"
         component={SettingsScreen}
         options={{
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="settings-outline" color={color} size={size} />
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons 
+              name={focused ? "settings" : "settings-outline"} 
+              color={color} 
+              size={24} 
+            />
           ),
         }}
       />
@@ -193,18 +224,46 @@ const PlaceholderScreen = ({ route }: any) => (
   </View>
 );
 
-// Community screen placeholder
-const CommunityScreen = () => (
-  <View style={styles.placeholderContainer}>
-    <Text style={styles.placeholderTitle}>Community</Text>
-    <Text style={styles.placeholderText}>Coming soon</Text>
-  </View>
-);
+// Intelligent role-based Community screen that shows the appropriate community based on user role
+const CommunityScreen = () => {
+  const { user } = useAuth();
+  
+  // In a production app, this would check the user's role in a more robust way
+  const userRole = user?.userType || 'anonymous';
+  const isDonor = userRole === 'subscriber' || userRole === 'donor';
+  const isApplicant = userRole === 'applicant';
+  
+  // Show the correct community based on user role
+  if (isDonor) {
+    return <DonorCircleScreen />;
+  } else if (isApplicant) {
+    return <SupportNetworkScreen />;
+  }
+  
+  // Default view for users who don't have a role yet
+  return (
+    <View style={styles.placeholderContainer}>
+      <Text style={styles.placeholderTitle}>Join Our Community</Text>
+      <Text style={styles.placeholderText}>
+        Make a donation to join our Donor Circle or submit your application to access Support Network.
+      </Text>
+      <View style={styles.communityButtonsContainer}>
+        <TouchableOpacity style={styles.primaryButton}>
+          <Text style={styles.primaryButtonText}>Make a Donation</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.secondaryButton}>
+          <Text style={styles.secondaryButtonText}>Submit Application</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+};
 
 // Enterprise-grade Root Navigator with comprehensive state management
 export const RootNavigator = () => {
   // Get full auth state including isAuthenticated flag, not just user object
-  const { user, isLoading, isAuthenticated, error } = useAuth();
+  // IMPORTANT: All hooks must be called at the top level to follow React Rules of Hooks
+  const { user, isLoading, isAuthenticated, error, clearError } = useAuth();
   
   // Track navigation state for diagnostics
   const [navigationState, setNavigationState] = React.useState<string>('initializing');
@@ -259,8 +318,6 @@ export const RootNavigator = () => {
   
   // Handle error state with properly styled error UI
   if (error) {
-    // Get clearError function from the same hook call we made at the top level
-    const { clearError } = useAuth();
     
     return (
       <View style={styles.errorContainer}>
@@ -301,9 +358,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   loadingText: {
+    marginTop: 12,
     fontFamily: typography.fonts.medium,
     fontSize: typography.fontSizes.body,
     color: colors.primaryText,
+    textAlign: 'center',
   },
   placeholderContainer: {
     flex: 1,
@@ -317,14 +376,49 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSizes.sectionHeading,
     color: colors.black,
     marginBottom: 12,
+    textAlign: 'center',
   },
   placeholderText: {
     fontFamily: typography.fonts.regular,
     fontSize: typography.fontSizes.body,
     color: colors.secondaryText,
     textAlign: 'center',
+    marginBottom: 24,
   },
-  // Error handling UI styles - enterprise-grade standards
+  communityButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    width: '100%',
+    marginTop: 24,
+  },
+  primaryButton: {
+    backgroundColor: colors.black,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    minWidth: 150,
+    alignItems: 'center',
+  },
+  primaryButtonText: {
+    color: colors.white,
+    fontFamily: typography.fonts.medium,
+    fontSize: 16,
+  },
+  secondaryButton: {
+    backgroundColor: colors.background,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    minWidth: 150,
+    alignItems: 'center',
+  },
+  secondaryButtonText: {
+    color: colors.black,
+    fontFamily: typography.fonts.medium,
+    fontSize: 16,
+  },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',

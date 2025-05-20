@@ -15,7 +15,7 @@ import {
   SidebarGroupContent,
   SidebarInset
 } from '@/components/ui/sidebar';
-import { Users, FileText, LayoutDashboard, LogOut } from 'lucide-react';
+import { Users, FileText, LayoutDashboard, LogOut, Heart, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/admin/context/AuthContext';
 
@@ -58,6 +58,38 @@ const AdminLayout = () => {
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+
+            <SidebarGroup>
+              <SidebarGroupLabel className="text-gray-400 text-xs uppercase px-5 py-2">COMMUNITY MANAGEMENT</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={location.pathname === '/admin/donor-feed'} className="px-5 py-3 hover:bg-gray-800">
+                      <Link to="/admin/donor-feed">
+                        <Heart className="h-5 w-5" />
+                        <span>Donor Feed</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={location.pathname === '/admin/support-network'} className="px-5 py-3 hover:bg-gray-800">
+                      <Link to="/admin/support-network">
+                        <MessageCircle className="h-5 w-5" />
+                        <span>Support Network</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+
+            <SidebarGroup>
+              <SidebarGroupLabel className="text-gray-400 text-xs uppercase px-5 py-2">OPERATIONS</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild isActive={location.pathname === '/admin/applicants'} className="px-5 py-3 hover:bg-gray-800">
                       <Link to="/admin/applicants">

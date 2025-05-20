@@ -8,30 +8,45 @@ A nonprofit iOS application connecting people who need assistance with essential
 
 The Assist App is a mobile platform that facilitates direct financial assistance between subscribers and applicants in need. Subscribers contribute monthly donations ($1-$20/month) which are pooled and distributed to randomly selected, verified applicants for rent, utilities, or tuition assistance.
 
-## Features
+## Key Features
+
+### Community Structure
+- **Donor Circle**: Exclusive community for subscribers featuring impact tracking, donation badges, and anonymized success stories from applicants who have received assistance.
+- **Support Network**: Dedicated community for verified applicants providing educational resources, a Q&A platform, and a supportive environment for those seeking assistance.
+- **Role-Based Access**: Intelligent routing to the appropriate community based on user role, ensuring users only see content relevant to them.
 
 ### For Applicants
 - Simple application process with basic identity verification
 - Secure document upload for ID, bills, lease, and tuition verification
 - Real-time application status tracking with clear indicators
+- Support Network community access:
+  - Resource Hub with educational content and assistance guides
+  - Community Q&A for getting questions answered
+  - Anonymized success stories shared with donors (opt-in only)
 - Comprehensive error handling and loading states
 - Professional, minimalist UI with clear instructions
 
 ### For Subscribers
 - Flexible donation tiers ($1, $5, $20 monthly)
-- Premium exclusive content:
+- Exclusive Donor Circle community access:
   - Impact Dashboard showing personalized impact metrics
   - Premium Resource Library with educational content
+  - Donor Feed with anonymized impact stories
+  - Achievement badges and donation milestones
   - Community impact tracking with detailed statistics
 - Social sharing capabilities for spreading awareness
-- Community feed with anonymized thank-you messages
 - Seamless subscription management with App Store guidelines compliance
 
 ### For Administrators
 - Secure document review interface
 - Role-based admin controls
+- Comprehensive admin dashboard:
+  - Donation metrics and community engagement analytics
+  - Donor Circle management tools
+  - Support Network moderation interface
 - Applicant review and approval workflow
 - Manual payout processing
+- Community content moderation tools
 - Enterprise-grade security with Firebase
 
 ## Tech Stack
@@ -48,9 +63,57 @@ The Assist App is a mobile platform that facilitates direct financial assistance
   - Subscription integrity monitoring
   - Automated reconciliation with Firestore
   - Rate limiting for security
-- React Navigation v7 for app navigation
+- React Navigation v7 for app navigation with:
+  - Role-based routing with auth protection
+  - Type-safe navigation parameters
+  - Material Top Tabs for community interfaces
 - Enterprise-grade architecture following MVVM/Clean patterns
 - Type-safe styling with strong accessibility support
+
+## Architecture
+
+### Community Module Architecture
+
+The community feature is structured following a robust domain-driven design approach:
+
+```
+src/
+├── features/
+│   ├── community/
+│   │   ├── components/
+│   │   │   ├── CommunityQA.tsx      # Q&A component for Support Network
+│   │   │   ├── DonorFeed.tsx        # Impact stories feed for Donor Circle
+│   │   │   ├── ResourceHub.tsx      # Educational resources component
+│   │   ├── hooks/
+│   │   │   ├── useCommunityData.ts  # Data fetching and state management
+│   │   ├── types/
+│   │   │   ├── community.ts         # Type definitions for community features
+├── screens/
+│   ├── app/
+│   │   ├── DonorCircleScreen.tsx    # Container for donor community features
+│   │   ├── SupportNetworkScreen.tsx # Container for applicant community features
+├── hooks/
+│   ├── useUserData.tsx              # User data and permissions hook
+├── navigation/
+│   ├── AppNavigator.tsx             # Role-based navigation with community routing
+```
+
+### Data Flow
+
+1. **Authentication Layer**: User role determination through secure Firebase Authentication
+2. **Role-Based Routing**: Intelligent routing to appropriate community based on role
+3. **Data Access Layer**: Type-safe hooks for fetching community-specific data
+4. **Presentation Layer**: Community-specific UI components with proper state handling
+5. **Interaction Layer**: Action handlers with comprehensive error management
+
+### Security Implementation
+
+- Role-based access control enforced at multiple levels:
+  - Client-side navigation guards
+  - Server-side Firestore security rules
+  - Firebase Functions authorization checks
+- Privacy protection for user data with comprehensive anonymization
+- Content moderation tools for administrators
 
 ## Getting Started
 

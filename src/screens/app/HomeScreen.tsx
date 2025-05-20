@@ -1,130 +1,152 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TouchableOpacity, 
-  ActivityIndicator,
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import {
+  View,
+  Text,
   SafeAreaView,
   StatusBar,
   ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  RefreshControl,
   Animated,
-  RefreshControl
+  Platform,
+  LayoutAnimation,
+  AccessibilityInfo,
+  StyleSheet,
+  Dimensions,
 } from 'react-native';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../contexts/AuthContext';
 import { colors, typography } from '../../constants/theme';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+
+// Import components and hooks from home feature module
+import {
+  HomeHeader,
+  ImpactSummaryCard,
+  SuggestedActionsCard,
+  CommunityCard,
+  MilestoneCard,
+  useHomeData,
+  LoadingState,
+  ImpactData
+} from '../../features/home';
+
+// Prop types for our components with proper typing
+interface SuggestedActionsCardProps {
+  actions: Array<{
+    id: string;
+    type: 'donate' | 'share' | 'community' | 'profile';
+    label: string;
+    description: string;
+    completed: boolean;
+    priority: number;
+  }>;
+  navigation: any;
+  disabled?: boolean;
+  onActionBlocked?: () => void;
+}
 
 /**
- * Enterprise-grade HomeScreen component with Apple-like minimalist design
- * Shows subscription amount, contribution progress, and community feed
- * Follows black and white minimalist aesthetic with clean typography
+ * HomeScreen - The primary dashboard component for authenticated users.
+ * Follows enterprise-grade architecture with modular components and proper
+ * separation of concerns. Includes comprehensive error handling,
+ * accessibility support, and proper state management.
  */
-export const HomeScreen = () => {
-  const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+/**
+ * HomeScreen - Primary dashboard component for authenticated users
+ * Enterprise-grade implementation following iOS design guidelines
+ */
+const HomeScreen: React.FC = () => {
+  // Hooks and context
   const navigation = useNavigation();
-  const scrollY = new Animated.Value(0);
+  const { user } = useAuth();
+  const { 
+    dashboardData, 
+    loadingState, 
+    errorMessage, 
+    refreshData 
+  } = useHomeData();
 
-  // Mock data for the dashboard with proper typing
-  const [dashboardData] = useState({
-    subscriptionAmount: 10,
-    totalContribution: 42000,
-    goalAmount: 50000,
-    impactStats: {
-      peopleHelped: 312,
-      successRate: 94
-    },
-    communityFeed: [
-      {
-        id: '1',
-        message: 'The assistance helped me keep my apartment during a difficult time. I\'m forever grateful to the subscribers who made this possible.',
-        date: '2 days ago'
-      },
-      {
-        id: '2',
-        message: 'Thank you to everyone who contributed. I was able to keep my utilities on during a medical emergency.',
-        date: '5 days ago'
-      },
-      {
-        id: '3',
-        message: 'I can focus on my studies now without worrying about my tuition payment. Thank you all!',
-        date: '1 week ago'
-      }
-    ]
-  });
+  // UI state with proper initialization
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [showOnboarding, setShowOnboarding] = useState<boolean>(false);
+  const [reducedMotionEnabled, setReducedMotionEnabled] = useState<boolean>(false);
+  const scrollY = useRef(new Animated.Value(0)).current;
+  
+  // Memoized device metrics for optimal performance
+  const { width } = useMemo(() => Dimensions.get('window'), []);
+  const isSmallDevice = useMemo(() => width < 375, [width]);
+  const isLargeDevice = useMemo(() => width >= 428, [width]);
 
-  // Load initial data
+  // Check for reduced motion preference (WCAG 2.1 compliance)
   useEffect(() => {
-    // Enterprise-grade implementation would fetch data from API
-    // For now we'll simulate loading
-    loadDashboardData();
-  }, []);
-
-  // Function to load dashboard data with proper error handling
-  const loadDashboardData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // In a real implementation, we would fetch data from Firebase
-      
-    } catch (err) {
-      console.error('Error loading dashboard data:', err);
-      setError('Failed to load dashboard data. Please try again.');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+    const checkReducedMotion = async () => {
+      try {
+        const isReducedMotionEnabled = await AccessibilityInfo.isReduceMotionEnabled();
+        setReducedMotionEnabled(isReducedMotionEnabled);
+        
+        // Apply appropriate animation preset based on user preference
+        if (Platform.OS === 'ios' && !isReducedMotionEnabled) {
+          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        }
+      } catch (error) {
+        console.error('Error checking motion preference:', error);
+        setReducedMotionEnabled(false);
+      }
+    };
+    
+    checkReducedMotion();
+    
+    // Show onboarding for first-time users
+    if (user && !user.metadata?.lastLoginAt) {
+      setShowOnboarding(true);
     }
-  };
+  }, [user]);
 
-  // Handle pull-to-refresh
-  const onRefresh = () => {
-    setRefreshing(true);
-    loadDashboardData();
-  };
-
-  // Create dynamic header opacity for scrolling effect
-  const headerOpacity = scrollY.interpolate({
-    inputRange: [0, 100],
-    outputRange: [1, 0.9],
-    extrapolate: 'clamp',
-  });
-
-  // Calculate progress percentage
-  const progressPercentage = (dashboardData.totalContribution / dashboardData.goalAmount) * 100;
-
-  // Loading state
-  if (loading && !refreshing) {
+  // Handle pull-to-refresh with proper loading state management
+  const handleRefresh = useCallback(() => {
+    if (loadingState === 'refreshing') return;
+    
+    setIsRefreshing(true);
+    refreshData();
+    // Reset refreshing state after a short delay for UI feedback
+    setTimeout(() => setIsRefreshing(false), 1000);
+  }, [loadingState, refreshData]);
+  
+  // Handle primary action button press
+  const handleDonatePress = useCallback(() => {
+    navigation.navigate('SupportInfo' as never);
+  }, [navigation]);
+  
+  // Enterprise-grade loading state with proper iOS-native spinner
+  if (loadingState === 'initial') {
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor={colors.surface.primary} />
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.black} style={styles.loader} />
+          <ActivityIndicator size="large" color={colors.accent.primary} />
           <Text style={styles.loadingText}>Loading your dashboard...</Text>
         </View>
       </SafeAreaView>
     );
   }
-
-  // Error state
-  if (error) {
+  
+  // Comprehensive error handling with proper iOS-native styling
+  if (loadingState === 'error') {
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor={colors.surface.primary} />
         <View style={styles.errorContainer}>
-          <MaterialIcons name="error-outline" size={64} color={colors.black} />
-          <Text style={styles.errorTitle}>Something went wrong</Text>
-          <Text style={styles.errorText}>{error}</Text>
+          <MaterialIcons name="error-outline" size={48} color={colors.feedback.error} />
+          <Text style={styles.errorTitle}>Oops! Something went wrong</Text>
+          <Text style={styles.errorText}>{errorMessage || 'Failed to load dashboard data'}</Text>
           <TouchableOpacity 
-            style={styles.primaryButton}
-            onPress={loadDashboardData}
+            style={styles.primaryButton} 
+            onPress={refreshData}
+            accessibilityLabel="Retry loading"
+            accessibilityRole="button"
+            activeOpacity={0.7}
           >
             <Text style={styles.primaryButtonText}>Try Again</Text>
           </TouchableOpacity>
@@ -133,37 +155,115 @@ export const HomeScreen = () => {
     );
   }
 
-  // If user is not authenticated or user data is not available
+  // Authentication flow integration
   if (!user) {
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
-        <View style={styles.loadingContainer}>
-          <Text style={styles.errorText}>Please log in to continue</Text>
+      <SafeAreaView style={styles.safeArea} testID="home-screen-unauthenticated">
+        <StatusBar barStyle="dark-content" backgroundColor={colors.surface.primary} />
+        <View style={styles.unauthContainer}>
+          <MaterialIcons 
+            name="account-circle" 
+            size={64} 
+            color={colors.accent.primary}
+            accessibilityLabel="Account icon" 
+          />
+          <Text style={[typography.styles.title2, styles.unauthTitle]}>
+            Welcome to The Assist App
+          </Text>
+          <Text style={[typography.styles.body, styles.unauthDescription]}>
+            Please log in to view your personalized dashboard and contribute to our mission.
+          </Text>
           <TouchableOpacity 
             style={styles.primaryButton}
             onPress={() => navigation.navigate('Login' as never)}
+            accessibilityLabel="Go to login"
+            accessibilityRole="button"
+            accessible={true}
           >
-            <Text style={styles.primaryButtonText}>Go to Login</Text>
+            <Text style={[typography.styles.button, styles.primaryButtonText]}>
+              Sign In
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.outlineButton}
+            onPress={() => navigation.navigate('Signup' as never)}
+            accessibilityLabel="Create an account"
+            accessibilityRole="button"
+            accessible={true}
+          >
+            <Text style={[typography.styles.button, styles.outlineButtonText]}>
+              Create Account
+            </Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
   }
-
+  
+  // Onboarding overlay with iOS-native sheet design
+  if (showOnboarding) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor={colors.surface.primary} />
+        <View style={styles.onboardingContainer}>
+          <View style={styles.onboardingCard}>
+            <Text style={[typography.styles.title2, styles.onboardingTitle]}>Welcome to The Assist App</Text>
+            <Text style={[typography.styles.body, styles.onboardingDescription]}>
+              We're thrilled to have you join our community! Complete your profile to get the most out of your experience.
+            </Text>
+            <TouchableOpacity 
+              style={styles.primaryButton}
+              onPress={() => {
+                setShowOnboarding(false);
+                navigation.navigate('Profile' as never);
+              }}
+              accessibilityLabel="Complete your profile"
+              accessibilityRole="button"
+              activeOpacity={0.7}
+            >
+              <Text style={styles.primaryButtonText}>Complete Profile</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.outlineButton}
+              onPress={() => setShowOnboarding(false)}
+              accessibilityLabel="Skip for now"
+              accessibilityRole="button"
+              activeOpacity={0.7}
+            >
+              <Text style={styles.outlineButtonText}>Skip for now</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
+  
+  // Main authenticated dashboard UI with modular components
+  // Check if the user has an active donation
+  const hasActiveDonation = user?.metadata?.hasActiveSubscription === true;
+  
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+    <SafeAreaView style={styles.container} testID="home-screen-dashboard">
+      <StatusBar barStyle="dark-content" backgroundColor={colors.surface.primary} />
       
-      {/* Animated Header */}
-      <Animated.View style={[styles.header, { opacity: headerOpacity }]}>
-        <Text style={styles.headerTitle}>Home</Text>
-      </Animated.View>
+      {/* Header component from home feature */}
+      <HomeHeader 
+        user={user}
+        scrollY={scrollY}
+        reducedMotionEnabled={reducedMotionEnabled}
+        isSmallDevice={isSmallDevice}
+        isLargeDevice={isLargeDevice}
+      />
       
-      <ScrollView 
+      {/* Main scrollable content with smooth animations */}
+      <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, {
+          paddingHorizontal: isSmallDevice ? 12 : isLargeDevice ? 24 : 16,
+          paddingBottom: isLargeDevice ? 32 : 24,
+        }]}
         showsVerticalScrollIndicator={false}
+        bounces={true}
         scrollEventThrottle={16}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
@@ -171,360 +271,396 @@ export const HomeScreen = () => {
         )}
         refreshControl={
           <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={colors.black}
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            tintColor={colors.accent.primary}
+            colors={[colors.accent.primary]}
+            progressBackgroundColor={colors.surface.secondary}
+            accessibilityLabel="Pull to refresh your dashboard"
           />
         }
       >
-        {/* Subscription Card */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Your Subscription</Text>
+        {/* First-time user onboarding overlay - conditionally rendered */}
+        {showOnboarding && (
+          <View style={styles.onboardingContainer}>
+            <View style={styles.onboardingCard}>
+              <Text style={[typography.styles.title3, styles.onboardingTitle]}>
+                Welcome to Your Impact Dashboard
+              </Text>
+              <Text style={[typography.styles.body, styles.onboardingDescription]}>
+                Here you'll track your contributions, view your impact, and connect with our community.
+              </Text>
+              <TouchableOpacity 
+                style={styles.primaryButton}
+                onPress={() => {
+                  if (!reducedMotionEnabled) {
+                    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                  }
+                  setShowOnboarding(false);
+                }}
+                accessibilityLabel="Get started"
+                accessibilityRole="button"
+                accessible={true}
+              >
+                <Text style={[typography.styles.button, styles.primaryButtonText]}>
+                  Get Started
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
-          <View style={styles.subscriptionContainer}>
-            <Text style={styles.subscriptionAmount}>${dashboardData.subscriptionAmount}</Text>
-            <Text style={styles.subscriptionPeriod}>per month</Text>
-          </View>
-          <Text style={styles.subscriptionInfo}>
-            Thank you for your continued support. Your subscription directly helps people in need.
-          </Text>
-        </View>
+        )}
         
-        {/* Contribution Progress Card */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Community Goal</Text>
-            <TouchableOpacity>
-              <Text style={styles.cardAction}>Details</Text>
+        {/* Welcome & Donate Banner - only for users without active donations */}
+        {!hasActiveDonation && (
+          <View style={styles.donatePromptCard}>
+            <View style={styles.donatePromptIcon}>
+              <Ionicons name="heart-outline" size={isSmallDevice ? 24 : 32} color="#F57C00" />
+            </View>
+            <Text style={[styles.donatePromptTitle, isSmallDevice && styles.smallDeviceText]}>Complete Your Subscription</Text>
+            <Text style={[styles.donatePromptText, isSmallDevice && styles.smallDeviceText]}>
+              Make your first donation to unlock all features and start making an impact.
+            </Text>
+            <TouchableOpacity 
+              style={styles.donateButton}
+              onPress={handleDonatePress}
+              accessibilityLabel="Donate now"
+              accessibilityRole="button"
+              activeOpacity={0.7}
+            >
+              <Text style={styles.donateButtonText}>Donate Now</Text>
             </TouchableOpacity>
           </View>
+        )}
+        
+        {/* Impact Summary Card from home feature */}
+        <View style={[styles.cardContainer, !hasActiveDonation && styles.disabledCardContainer]}>
+          <ImpactSummaryCard
+            totalContribution={dashboardData.totalContribution}
+            goalAmount={dashboardData.goalAmount}
+            peopleHelped={dashboardData.impactStats.peopleHelped}
+            successRate={dashboardData.impactStats.successRate}
+            onDonatePress={handleDonatePress}
+          />
           
-          <View style={styles.progressContainer}>
-            <View style={styles.progressBarBackground}>
-              <View 
-                style={[styles.progressBarFill, { width: `${progressPercentage}%` }]}
-              />
+          {/* Overlay for non-donating users */}
+          {!hasActiveDonation && (
+            <View style={styles.cardOverlay}>
+              <TouchableOpacity 
+                style={styles.unlockButton}
+                onPress={handleDonatePress}
+              >
+                <Ionicons name="lock-closed" size={24} color={colors.white} />
+                <Text style={styles.unlockButtonText}>Donate to Access</Text>
+              </TouchableOpacity>
             </View>
-            <View style={styles.progressLabels}>
-              <Text style={styles.progressLabelStart}>${dashboardData.totalContribution / 1000}K</Text>
-              <Text style={styles.progressLabelEnd}>${dashboardData.goalAmount / 1000}K</Text>
-            </View>
-          </View>
+          )}
         </View>
         
-        {/* Impact Stats Card */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Impact</Text>
-          </View>
+        {/* Suggested Actions Card from home feature */}
+        <SuggestedActionsCard
+          actions={dashboardData.suggestedActions}
+          navigation={navigation}
+          disabled={!hasActiveDonation}
+          onActionBlocked={handleDonatePress}
+        />
+        
+        {/* Community Card from home feature - always visible but with content lock */}
+        <View style={[styles.cardContainer, !hasActiveDonation && styles.disabledCardContainer]}>
+          <CommunityCard 
+            navigation={navigation}
+          />
           
-          <View style={styles.statsContainer}>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{dashboardData.impactStats.peopleHelped}</Text>
-              <Text style={styles.statLabel}>People Helped</Text>
-              <Text style={styles.statInfo}>This Month</Text>
+          {/* Overlay for non-donating users */}
+          {!hasActiveDonation && (
+            <View style={styles.cardOverlay}>
+              <TouchableOpacity 
+                style={styles.unlockButton}
+                onPress={handleDonatePress}
+              >
+                <Ionicons name="lock-closed" size={24} color={colors.white} />
+                <Text style={styles.unlockButtonText}>Donate to Access Community</Text>
+              </TouchableOpacity>
             </View>
-            
-            <View style={styles.statDivider} />
-            
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{dashboardData.impactStats.successRate}%</Text>
-              <Text style={styles.statLabel}>Success Rate</Text>
-              <Text style={styles.statInfo}>Verified Assistance</Text>
-            </View>
-          </View>
+          )}
         </View>
         
-        {/* Share Card */}
-        <TouchableOpacity style={styles.shareCard}>
-          <View style={styles.shareContent}>
-            <Ionicons name="share-social-outline" size={24} color={colors.white} />
-            <Text style={styles.shareText}>Share your contribution impact</Text>
-          </View>
-        </TouchableOpacity>
-        
-        {/* Community Feed */}
-        <View style={styles.feedCard}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Community Feed</Text>
-            <TouchableOpacity>
-              <Text style={styles.cardAction}>See All</Text>
-            </TouchableOpacity>
-          </View>
+        {/* Milestone Card from home feature */}
+        <View style={[styles.cardContainer, !hasActiveDonation && styles.disabledCardContainer]}>
+          <MilestoneCard
+            milestone={dashboardData.nextMilestone}
+            progress={dashboardData.userProgress}
+          />
           
-          {dashboardData.communityFeed.map(item => (
-            <View key={item.id} style={styles.feedItem}>
-              <View style={styles.feedItemHeader}>
-                <View style={styles.feedItemAvatar}>
-                  <Text style={styles.feedItemInitial}>A</Text>
-                </View>
-                <Text style={styles.feedItemDate}>{item.date}</Text>
-              </View>
-              <Text style={styles.feedItemText}>{item.message}</Text>
-              <View style={styles.feedItemFooter}>
-                <TouchableOpacity style={styles.feedItemAction}>
-                  <Ionicons name="heart-outline" size={18} color={colors.secondaryText} />
-                  <Text style={styles.feedItemActionText}>Support</Text>
-                </TouchableOpacity>
-              </View>
+          {/* Overlay for non-donating users */}
+          {!hasActiveDonation && (
+            <View style={styles.cardOverlay}>
+              <TouchableOpacity 
+                style={styles.unlockButton}
+                onPress={handleDonatePress}
+              >
+                <Ionicons name="lock-closed" size={24} color={colors.white} />
+                <Text style={styles.unlockButtonText}>Donate to Track Milestones</Text>
+              </TouchableOpacity>
             </View>
-          ))}
+          )}
         </View>
+        
+        {/* Add bottom padding to account for tab bar */}
+        <View style={{ height: 80 }} />
       </ScrollView>
     </SafeAreaView>
   );
 };
 
+// Enterprise-grade styled components with accessibility and iOS-native design
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.surface.primary,
+  },
   safeArea: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.surface.primary,
+  },
+  // Card container and overlay styles
+  cardContainer: {
+    position: 'relative',
+    marginBottom: 16,
+    borderRadius: 16,
+    overflow: 'hidden',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
+  },
+  disabledCardContainer: {
+    opacity: 0.9,
+  },
+  cardOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 12,
+  },
+  unlockButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.accent.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+  },
+  unlockButtonText: {
+    fontFamily: typography.fonts.medium,
+    fontSize: typography.fontSizes.button,
+    color: colors.white,
+    marginLeft: 8,
+  },
+  // Donate prompt styles
+  donatePromptCard: {
+    backgroundColor: '#FFF8E1', // Light yellow background
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+    alignItems: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
+  },
+  donatePromptIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(255, 167, 38, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  donatePromptTitle: {
+    fontFamily: typography.fonts.bold,
+    fontSize: typography.fontSizes.title3,
+    color: colors.black,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  donatePromptText: {
+    fontFamily: typography.fonts.regular,
+    fontSize: typography.fontSizes.body,
+    color: colors.primaryText,
+    textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 22,
+    paddingHorizontal: 8,
+  },
+  donateButton: {
+    backgroundColor: colors.black,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    borderRadius: 12,
+    alignSelf: 'center',
+    minWidth: 200,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  donateButtonText: {
+    fontFamily: typography.fonts.medium,
+    fontSize: typography.fontSizes.button,
+    color: colors.white,
+    textAlign: 'center',
+  },
+  smallDeviceText: {
+    fontSize: typography.fontSizes.footnote,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.background,
-  },
-  loader: {
-    marginBottom: 12,
+    padding: 24,
+    backgroundColor: colors.surface.primary,
   },
   loadingText: {
-    ...typography.body,
-    color: colors.secondaryText,
+    fontFamily: typography.fonts.medium,
+    fontSize: typography.fontSizes.subheadline,
+    color: colors.text.primary,
+    textAlign: 'center',
+    marginTop: 12,
+    letterSpacing: -0.24,
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.background,
-    padding: 20,
+    padding: 24,
+    backgroundColor: colors.surface.primary,
   },
   errorTitle: {
-    ...typography.h2,
-    color: colors.black,
-    marginVertical: 12,
+    fontFamily: typography.fonts.semibold,
+    fontSize: typography.fontSizes.title3,
+    color: colors.text.primary,
+    marginBottom: 8,
+    textAlign: 'center',
   },
   errorText: {
-    ...typography.body,
-    color: colors.secondaryText,
+    color: colors.text.secondary,
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
   },
-  primaryButton: {
-    backgroundColor: colors.black,
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    borderRadius: 12,
-    alignItems: 'center',
+  unauthContainer: {
+    flex: 1,
     justifyContent: 'center',
-    marginTop: 8,
-    minWidth: 200,
+    alignItems: 'center',
+    backgroundColor: colors.surface.primary,
+    paddingHorizontal: 24,
   },
-  primaryButtonText: {
-    ...typography.buttonText,
-    color: colors.white,
-    fontWeight: '600',
+  unauthTitle: {
+    color: colors.text.primary,
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
   },
-  header: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.05)',
-    backgroundColor: colors.background,
-    zIndex: 10,
-  },
-  headerTitle: {
-    ...typography.h1,
-    color: colors.black,
+  unauthDescription: {
+    color: colors.text.secondary,
+    textAlign: 'center',
+    marginBottom: 24,
+    paddingHorizontal: 16,
   },
   scrollView: {
     flex: 1,
+    backgroundColor: colors.surface.primary,
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 30,
+    flexGrow: 1,
+    paddingTop: 8,
   },
-  card: {
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    padding: 20,
-    marginTop: 16,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  onboardingContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 10,
+    padding: 24,
+  },
+  onboardingCard: {
+    backgroundColor: colors.surface.primary,
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    alignItems: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
+  },
+  onboardingTitle: {
+    color: colors.text.primary,
     marginBottom: 16,
+    textAlign: 'center',
   },
-  cardTitle: {
-    ...typography.h3,
-    color: colors.black,
+  onboardingDescription: {
+    color: colors.text.secondary,
+    textAlign: 'center',
+    marginBottom: 24,
   },
-  cardAction: {
-    ...typography.buttonText,
-    color: colors.black,
-  },
-  subscriptionContainer: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    marginBottom: 12,
-  },
-  subscriptionAmount: {
-    ...typography.h1,
-    color: colors.black,
-    fontSize: 42,
-  },
-  subscriptionPeriod: {
-    ...typography.body,
-    color: colors.secondaryText,
-    marginLeft: 6,
-  },
-  subscriptionInfo: {
-    ...typography.body,
-    color: colors.secondaryText,
-    marginTop: 8,
-  },
-  progressContainer: {
+  primaryButton: {
+    backgroundColor: colors.accent.primary,
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
     marginVertical: 8,
   },
-  progressBarBackground: {
-    height: 8,
-    backgroundColor: 'rgba(0,0,0,0.05)',
-    borderRadius: 4,
-    overflow: 'hidden',
+  primaryButtonText: {
+    color: '#FFFFFF', // White text on accent background
+    fontWeight: '600',
   },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: colors.black,
-    borderRadius: 4,
-  },
-  progressLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 8,
-  },
-  progressLabelStart: {
-    ...typography.caption,
-    color: colors.black,
-  },
-  progressLabelEnd: {
-    ...typography.caption,
-    color: colors.secondaryText,
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  statItem: {
-    flex: 1,
-    alignItems: 'center',
-    padding: 16,
-  },
-  statDivider: {
-    width: 1,
-    height: 50,
-    backgroundColor: 'rgba(0,0,0,0.05)',
-  },
-  statNumber: {
-    ...typography.h2,
-    color: colors.black,
-    marginBottom: 4,
-  },
-  statLabel: {
-    ...typography.body,
-    color: colors.black,
-    fontWeight: '500',
-    marginBottom: 2,
-  },
-  statInfo: {
-    ...typography.caption,
-    color: colors.secondaryText,
-  },
-  shareCard: {
-    backgroundColor: colors.black,
-    borderRadius: 16,
-    marginTop: 16,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  shareContent: {
-    flexDirection: 'row',
+  outlineButton: {
+    borderWidth: 1,
+    borderColor: colors.accent.primary,
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 20,
+    width: '100%',
+    marginVertical: 8,
   },
-  shareText: {
-    ...typography.buttonText,
-    color: colors.white,
-    marginLeft: 8,
-  },
-  feedCard: {
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    padding: 20,
-    marginTop: 16,
-    marginBottom: 16,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  feedItem: {
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.05)',
-    paddingVertical: 16,
-  },
-  feedItemHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  feedItemAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(0,0,0,0.05)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  feedItemInitial: {
-    ...typography.body,
-    color: colors.black,
-    fontWeight: '500',
-  },
-  feedItemDate: {
-    ...typography.caption,
-    color: colors.secondaryText,
-  },
-  feedItemText: {
-    ...typography.body,
-    color: colors.black,
-    lineHeight: 22,
-  },
-  feedItemFooter: {
-    marginTop: 12,
-    flexDirection: 'row',
-  },
-  feedItemAction: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  feedItemActionText: {
-    ...typography.caption,
-    color: colors.secondaryText,
-    marginLeft: 4,
+  outlineButtonText: {
+    color: colors.accent.primary,
+    fontWeight: '600',
   },
 });
+
+export { HomeScreen };

@@ -1,18 +1,17 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../../contexts/AuthContext';
-import { colors, typography } from '../../../constants/theme';
+import { colors } from '../../../constants/theme';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Card } from '../../../components/ui/Card';
-import { Button } from '../../../components/ui/Button';
 import { Ionicons } from '@expo/vector-icons';
 
 /**
  * SupportInfoScreen - Displays information about supporting The Assist App
  * 
  * This screen follows App Store guidelines by providing information about
- * subscription options without direct links for payment.
+ * donation options without direct links for payment. Uses iOS-native design patterns.
+ * Implements monochromatic black/white/grey color scheme for a professional appearance.
  */
 export const SupportInfoScreen = () => {
   const navigation = useNavigation();
@@ -20,282 +19,362 @@ export const SupportInfoScreen = () => {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <View style={styles.header}>
-          <Button
-            variant="ghost"
-            onPress={() => navigation.goBack()}
-            leftIcon={<Ionicons name="arrow-back" size={24} color={colors.black} />}
-            style={styles.backButton}
-          />
-          <Text style={styles.title}>Support The Assist App</Text>
+      <StatusBar barStyle="dark-content" />
+      <View style={styles.iosHeader}>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="chevron-back" size={24} color="#000000" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Make a Donation</Text>
+        <View style={styles.headerRight} />
+      </View>
+
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Top section - why donate */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Support Our Mission</Text>
+          <Text style={styles.sectionText}>
+            Your donation helps us continue our mission of providing assistance 
+            to those in need. As a donor, you'll gain access to premium features 
+            and directly support our community initiatives.
+          </Text>
         </View>
 
-        <View style={styles.content}>
-          {/* Main explanation section */}
-          <Card style={styles.card}>
-            <View style={styles.cardContent}>
-              <Text style={styles.cardTitle}>Why Support Us?</Text>
-              <Text style={styles.cardText}>
-                Your support helps us continue our mission of providing assistance 
-                to those in need. By becoming a supporter, you'll gain access to
-                premium features and help sustain our community initiatives.
-              </Text>
-            </View>
-          </Card>
-
-          {/* Subscription tiers information */}
-          <Text style={styles.sectionTitle}>Subscription Options</Text>
+        {/* Simple donation section for MVP */}
+        <View style={styles.donationCard}>
+          <View style={styles.donationHeader}>
+            <Text style={styles.donationTitle}>Support Our Mission</Text>
+          </View>
           
-          <Card style={styles.tierCard}>
-            <View style={styles.tierHeader}>
-              <Text style={styles.tierTitle}>Monthly Supporter</Text>
-              <Text style={styles.tierPrice}>$9.99/month</Text>
-            </View>
-            <View style={styles.tierFeatures}>
-              <FeatureItem text="Full access to exclusive content" />
-              <FeatureItem text="Priority support" />
-              <FeatureItem text="Monthly newsletter" />
-              <FeatureItem text="Community access" />
-            </View>
-          </Card>
-          
-          <Card style={[styles.tierCard, styles.popularTier]}>
-            <View style={styles.popularBadge}>
-              <Text style={styles.popularText}>Most Popular</Text>
-            </View>
-            <View style={styles.tierHeader}>
-              <Text style={styles.tierTitle}>Annual Supporter</Text>
-              <Text style={styles.tierPrice}>$99.99/year</Text>
-            </View>
-            <View style={styles.tierFeatures}>
-              <FeatureItem text="Everything in Monthly tier" />
-              <FeatureItem text="2 months free" />
-              <FeatureItem text="Early access to new features" />
-              <FeatureItem text="Exclusive virtual events" />
-            </View>
-          </Card>
-          
-          <Card style={styles.tierCard}>
-            <View style={styles.tierHeader}>
-              <Text style={styles.tierTitle}>Lifetime Supporter</Text>
-              <Text style={styles.tierPrice}>$299.99 one-time</Text>
-            </View>
-            <View style={styles.tierFeatures}>
-              <FeatureItem text="Everything in Annual tier" />
-              <FeatureItem text="Lifetime access" />
-              <FeatureItem text="Special recognition" />
-              <FeatureItem text="Custom support channel" />
-            </View>
-          </Card>
-
-          {/* Info on how to subscribe - App Store compliant approach */}
-          <Card style={styles.infoCard}>
-            <View style={styles.infoContent}>
-              <Text style={styles.infoTitle}>How to Subscribe</Text>
-              <Text style={styles.infoText}>
-                To support The Assist App and unlock premium features, please visit our website:
-              </Text>
-              <Text style={styles.websiteText}>
-                theassistapp.org/subscribe
-              </Text>
-              <Text style={styles.infoText}>
-                After completing your subscription on our website with your account email
-                ({user?.email}), you'll immediately gain access to all supporter benefits
-                in the app.
-              </Text>
-            </View>
-          </Card>
-
-          {/* FAQ Section */}
-          <Text style={styles.sectionTitle}>Frequently Asked Questions</Text>
-          
-          <Card style={styles.faqCard}>
-            <Text style={styles.faqQuestion}>How soon will my subscription activate?</Text>
-            <Text style={styles.faqAnswer}>
-              Your benefits will be available immediately after completing your subscription on our website.
+          <View style={styles.donationContent}>
+            <Text style={styles.donationText}>
+              Your donation of any amount unlocks all premium features immediately. All donors receive the same complete set of benefits, regardless of contribution size.
             </Text>
-          </Card>
-          
-          <Card style={styles.faqCard}>
-            <Text style={styles.faqQuestion}>Can I cancel my subscription?</Text>
-            <Text style={styles.faqAnswer}>
-              Yes, you can manage or cancel your subscription anytime from our website.
+            
+            <View style={styles.amountsContainer}>
+              <TouchableOpacity style={styles.amountOption}>
+                <Text style={styles.amountValue}>$1</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity style={[styles.amountOption, styles.selectedAmount]}>
+                <Text style={[styles.amountValue, styles.selectedAmountText]}>$5</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity style={styles.amountOption}>
+                <Text style={styles.amountValue}>$10</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity style={styles.amountOption}>
+                <Text style={styles.amountValue}>$25</Text>
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.benefitsContainer}>
+              <Text style={styles.benefitsTitle}>All Donors Get:</Text>
+              <View style={styles.benefitsList}>
+                <View style={styles.benefitItem}>
+                  <Ionicons name="checkmark" size={18} color="#000000" />
+                  <Text style={styles.benefitText}>Full access to premium resources</Text>
+                </View>
+                <View style={styles.benefitItem}>
+                  <Ionicons name="checkmark" size={18} color="#000000" />
+                  <Text style={styles.benefitText}>Detailed impact dashboard</Text>
+                </View>
+                <View style={styles.benefitItem}>
+                  <Ionicons name="checkmark" size={18} color="#000000" />
+                  <Text style={styles.benefitText}>Community features</Text>
+                </View>
+                <View style={styles.benefitItem}>
+                  <Ionicons name="checkmark" size={18} color="#000000" />
+                  <Text style={styles.benefitText}>Support our important mission</Text>
+                </View>
+              </View>
+            </View>
+            
+            <TouchableOpacity style={styles.donateButton}>
+              <Text style={styles.donateButtonText}>Make Donation</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* How it works section */}
+        <View style={styles.section}>
+          <Text style={styles.groupHeader}>How It Works</Text>
+          <View style={styles.howItWorksCard}>
+            <Text style={styles.howItWorksText}>
+              Secure donations can be processed through our website at <Text style={styles.websiteText}>theassistapp.org/donate</Text>
             </Text>
-          </Card>
-          
-          <Card style={styles.faqCard}>
-            <Text style={styles.faqQuestion}>Need help?</Text>
-            <Text style={styles.faqAnswer}>
-              If you have any questions, please contact our support team at support@theassistapp.org.
+            <Text style={styles.howItWorksText}>
+              Use your account email ({user?.email}) during the donation process for immediate activation of premium features across all your devices.
             </Text>
-          </Card>
+          </View>
+        </View>
+
+        {/* FAQ Section */}
+        <View style={styles.section}>
+          <Text style={styles.groupHeader}>Frequently Asked Questions</Text>
+          
+          <View style={styles.faqItem}>
+            <Text style={styles.faqQuestion}>When are premium features activated?</Text>
+            <Text style={styles.faqAnswer}>
+              Premium features are activated immediately upon successful donation processing. You'll receive an email confirmation with your receipt and access details.
+            </Text>
+          </View>
+          
+          <View style={styles.faqItem}>
+            <Text style={styles.faqQuestion}>How do I manage my donation settings?</Text>
+            <Text style={styles.faqAnswer}>
+              You can view and manage your donation history, payment methods, and recurring donation settings in your account dashboard at theassistapp.org/account.
+            </Text>
+          </View>
+          
+          <View style={styles.faqItem}>
+            <Text style={styles.faqQuestion}>Are donations tax-deductible?</Text>
+            <Text style={styles.faqAnswer}>
+              Yes, all donations may be tax-deductible depending on your jurisdiction. A detailed receipt suitable for tax purposes will be sent to your email address upon donation completion.
+            </Text>
+          </View>
+          
+          <View style={styles.faqItem}>
+            <Text style={styles.faqQuestion}>How can I contact support?</Text>
+            <Text style={styles.faqAnswer}>
+              Our dedicated support team is available via email at support@theassistapp.org or through our in-app support chat. Premium donors receive priority response times.
+            </Text>
+          </View>
+        </View>
+        
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>Thank you for your support</Text>
         </View>
       </ScrollView>
     </SafeAreaView>
   );
 };
 
-// Helper component for feature list items
-const FeatureItem = ({ text }: { text: string }) => (
-  <View style={styles.featureItem}>
-    <Ionicons name="checkmark-circle" size={20} color={colors.primary} style={styles.checkIcon} />
-    <Text style={styles.featureText}>{text}</Text>
-  </View>
-);
-
 const styles = StyleSheet.create({
+  // Core layout - iOS-native
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#F2F2F7', // iOS system background color
   },
-  scrollContainer: {
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
     padding: 16,
+    paddingBottom: 40,
   },
-  header: {
+  
+  // iOS-style header
+  iosHeader: {
+    height: 44,
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    borderBottomWidth: 0.5,
+    borderBottomColor: 'rgba(0,0,0,0.1)',
+    backgroundColor: '#F2F2F7',
+  },
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#000000',
+    textAlign: 'center',
   },
   backButton: {
-    marginRight: 8,
+    position: 'absolute',
+    left: 8,
+    padding: 8,
   },
-  title: {
-    fontFamily: typography.fonts.semiBold,
-    fontSize: typography.fontSizes.heading,
-    color: colors.black,
-    flex: 1,
+  headerRight: {
+    width: 40, // for balance with left button
   },
-  content: {
-    marginBottom: 32,
-  },
-  card: {
+  
+  // Content sections
+  section: {
     marginBottom: 24,
-  },
-  cardContent: {
-    padding: 16,
-  },
-  cardTitle: {
-    fontFamily: typography.fonts.semiBold,
-    fontSize: typography.fontSizes.subheading,
-    color: colors.black,
-    marginBottom: 8,
-  },
-  cardText: {
-    fontFamily: typography.fonts.regular,
-    fontSize: typography.fontSizes.body,
-    color: colors.primaryText,
-    lineHeight: 22,
   },
   sectionTitle: {
-    fontFamily: typography.fonts.semiBold,
-    fontSize: typography.fontSizes.subheading,
-    color: colors.black,
-    marginTop: 16,
-    marginBottom: 16,
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#000000',
+    marginBottom: 12,
   },
-  tierCard: {
+  sectionText: {
+    fontSize: 16,
+    color: '#3A3A3C',
+    lineHeight: 22,
+  },
+  groupHeader: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#000000',
     marginBottom: 16,
+    marginTop: 8,
+  },
+  
+  // Premium donation card
+  donationCard: {
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
+    marginBottom: 24,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
     overflow: 'hidden',
   },
-  popularTier: {
-    borderWidth: 2,
-    borderColor: colors.primary,
-  },
-  popularBadge: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    backgroundColor: colors.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderBottomLeftRadius: 12,
-    zIndex: 1,
-  },
-  popularText: {
-    fontFamily: typography.fonts.medium,
-    fontSize: 12,
-    color: colors.white,
-  },
-  tierHeader: {
-    padding: 16,
-    backgroundColor: colors.lightGray,
-  },
-  tierTitle: {
-    fontFamily: typography.fonts.semiBold,
-    fontSize: typography.fontSizes.subheading,
-    color: colors.black,
-    marginBottom: 4,
-  },
-  tierPrice: {
-    fontFamily: typography.fonts.bold,
-    fontSize: 22,
-    color: colors.primary,
-  },
-  tierFeatures: {
+  donationHeader: {
+    backgroundColor: '#F2F2F7',
     padding: 16,
   },
-  featureItem: {
+  donationTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#000000',
+  },
+  donationContent: {
+    padding: 16,
+  },
+  donationText: {
+    fontSize: 16,
+    color: '#3A3A3C',
+    lineHeight: 22,
+    marginBottom: 20,
+  },
+  benefitsContainer: {
+    marginTop: 20,
+    marginBottom: 16,
+  },
+  benefitsTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#000000',
+    marginBottom: 12,
+  },
+  benefitsList: {
+    paddingLeft: 4,
+  },
+  
+  // Amount selection
+  amountsContainer: {
     flexDirection: 'row',
-    marginBottom: 12,
-    alignItems: 'flex-start',
-  },
-  checkIcon: {
-    marginRight: 8,
-    marginTop: 2,
-  },
-  featureText: {
-    fontFamily: typography.fonts.regular,
-    fontSize: typography.fontSizes.body,
-    color: colors.primaryText,
-    flex: 1,
-  },
-  infoCard: {
-    marginTop: 24,
-    marginBottom: 24,
-    backgroundColor: colors.lightPrimary,
-  },
-  infoContent: {
+    justifyContent: 'space-between',
     padding: 16,
   },
-  infoTitle: {
-    fontFamily: typography.fonts.semiBold,
-    fontSize: typography.fontSizes.subheading,
-    color: colors.black,
+  amountOption: {
+    width: 70,
+    height: 40,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F9F9F9',
+  },
+  selectedAmount: {
+    backgroundColor: '#000000',
+    borderColor: '#000000',
+  },
+  amountValue: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#000000',
+  },
+  selectedAmountText: {
+    color: '#FFFFFF',
+  },
+  
+  // Benefits list
+  tierBenefits: {
+    padding: 16,
+  },
+  benefitItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 12,
   },
-  infoText: {
-    fontFamily: typography.fonts.regular,
-    fontSize: typography.fontSizes.body,
-    color: colors.primaryText,
+  benefitText: {
+    fontSize: 15,
+    color: '#3A3A3C',
+    marginLeft: 10,
+  },
+  donateButton: {
+    backgroundColor: '#000000',
+    paddingVertical: 12,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  donateButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  
+  // How it works section
+  howItWorksCard: {
+    backgroundColor: '#F9F9FB',
+    borderRadius: 10,
+    padding: 16,
+    marginBottom: 8,
+  },
+  howItWorksText: {
+    fontSize: 15,
+    color: '#3A3A3C',
     marginBottom: 12,
     lineHeight: 22,
   },
   websiteText: {
-    fontFamily: typography.fonts.medium,
-    fontSize: typography.fontSizes.body,
-    color: colors.black,
-    marginBottom: 12,
-    textAlign: 'center',
-    paddingVertical: 12,
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#000000',
   },
-  faqCard: {
+  
+  // FAQ section
+  faqItem: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
     marginBottom: 12,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
     padding: 16,
   },
   faqQuestion: {
-    fontFamily: typography.fonts.semiBold,
-    fontSize: typography.fontSizes.body,
-    color: colors.black,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000000',
     marginBottom: 8,
   },
   faqAnswer: {
-    fontFamily: typography.fonts.regular,
-    fontSize: typography.fontSizes.body,
-    color: colors.primaryText,
-    lineHeight: 22,
+    fontSize: 15,
+    color: '#3A3A3C',
+    lineHeight: 20,
   },
+  
+  // Footer
+  footer: {
+    marginTop: 8,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  footerText: {
+    fontSize: 13,
+    color: '#8E8E93',
+    textAlign: 'center',
+  }
 });
 
 export default SupportInfoScreen;
