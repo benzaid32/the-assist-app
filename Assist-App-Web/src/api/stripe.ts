@@ -92,17 +92,17 @@ export class StripeService {
         updatedAt: new Date()
       };
       
-      // Update user profile with new subscription status
-      // Enterprise-grade implementation with domain-specific configuration
-      // Using official domain: theassistapp.org
-      const userRef = doc(collection(firestore, 'users'), userId);
-      await setDoc(userRef, {
-        hasActiveSubscription: true,
-        subscriptionStatus: verifiedSubscription.status,
-        subscriptionTier: verifiedSubscription.tier,
-        subscriptionDomain: 'theassistapp.org', // Record official domain
-        subscriptionUpdatedAt: new Date()
-      }, { merge: true });
+      // Enterprise-grade approach using callable function pattern
+      // This follows security best practices by keeping subscription updates on the server side
+      const { getFunctions, httpsCallable } = await import('firebase/functions');
+      const functions = getFunctions(firebaseApp);
+      
+      // Call server-side function to update subscription
+      const updateSubscription = httpsCallable(functions, 'updateSubscriptionStatus');
+      await updateSubscription({
+        subscriptionData: verifiedSubscription,
+        userId: userId
+      });
 
       // Log verification success with structured data for audit trail
       console.log(`User profile updated for ${userId} with subscription status: ${verifiedSubscription.status}`);
