@@ -122,10 +122,10 @@ const AdminDashboard = () => {
       </div>
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="donor-circle">Donor Circle</TabsTrigger>
-          <TabsTrigger value="support-network">Support Network</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-3 bg-black/5">
+          <TabsTrigger value="overview" className="data-[state=active]:bg-black data-[state=active]:text-white">Overview</TabsTrigger>
+          <TabsTrigger value="donor-circle" className="data-[state=active]:bg-black data-[state=active]:text-white">Donor Circle</TabsTrigger>
+          <TabsTrigger value="support-network" className="data-[state=active]:bg-black data-[state=active]:text-white">Support Network</TabsTrigger>
         </TabsList>
         
         <TabsContent value="overview" className="space-y-4 mt-4">

@@ -1,5 +1,15 @@
 {
   "projects": {
     "default": "assist-app-6c044"
-  }
+  },
+  "targets": {
+    "assist-app-6c044": {
+      "hosting": {
+        "production": [
+          "theassistapp-org"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }

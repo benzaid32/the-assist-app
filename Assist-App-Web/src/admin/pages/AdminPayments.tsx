@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { collection, getDocs, doc, setDoc, updateDoc, query, where, orderBy, limit, Timestamp } from 'firebase/firestore';
+import { firestore } from '../../lib/firebase';
 import {
   Table,
   TableBody,
@@ -49,25 +51,29 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 
-// Mock payment data
-const mockPayments = [
-  { id: 'TXN-100001', applicantId: 'APPL-123458', applicantName: 'Robert Johnson', amount: 500, biller: 'ACME Utilities', date: '2025-05-15', status: 'sent' },
-  { id: 'TXN-100002', applicantId: 'APPL-123460', applicantName: 'Michael Wilson', amount: 750, biller: 'Hometown Rentals', date: '2025-05-14', status: 'sent' },
-  { id: 'TXN-100003', applicantId: 'APPL-123462', applicantName: 'David Miller', amount: 300, biller: 'MediHelp Services', date: '2025-05-13', status: 'pending' },
-  { id: 'TXN-100004', applicantId: 'APPL-123463', applicantName: 'Jennifer Garcia', amount: 200, biller: 'FoodMart Inc.', date: '2025-05-12', status: 'sent' },
-  { id: 'TXN-100005', applicantId: 'APPL-123457', applicantName: 'Jane Smith', amount: 450, biller: 'Energy Providers', date: '2025-05-11', status: 'failed' },
-  { id: 'TXN-100006', applicantId: 'APPL-123461', applicantName: 'Sarah Davis', amount: 600, biller: 'Urban Housing', date: '2025-05-10', status: 'pending' },
-];
+// Payment interface with proper typing
+interface Payment {
+  id: string;
+  applicantId: string;
+  applicantName: string;
+  amount: number;
+  biller: string;
+  billerAccount?: string;
+  date: string;
+  status: PaymentStatus;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  processedAt?: Timestamp;
+  notes?: string;
+}
 
-// Mock applicants for the select dropdown
-const mockApplicantOptions = [
-  { id: 'APPL-123458', name: 'Robert Johnson' },
-  { id: 'APPL-123460', name: 'Michael Wilson' },
-  { id: 'APPL-123462', name: 'David Miller' },
-  { id: 'APPL-123463', name: 'Jennifer Garcia' },
-  { id: 'APPL-123457', name: 'Jane Smith' },
-  { id: 'APPL-123461', name: 'Sarah Davis' },
-];
+// Applicant interface
+interface Applicant {
+  id: string;
+  name: string;
+  email?: string;
+  status?: string;
+}
 
 type PaymentStatus = 'pending' | 'sent' | 'failed';
 
@@ -86,11 +92,88 @@ const paymentFormSchema = z.object({
 });
 
 const AdminPayments = () => {
+  // State management with proper typing
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [applicants, setApplicants] = useState<Applicant[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
-  const [selectedPayment, setSelectedPayment] = useState<any>(null);
+  const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  
+  // Fetch payments and applicants from Firestore
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        // Fetch payments with proper query and error handling
+        const paymentsQuery = query(
+          collection(firestore, 'payments'),
+          orderBy('createdAt', 'desc'),
+          limit(50)
+        );
+        
+        const paymentsSnapshot = await getDocs(paymentsQuery);
+        const paymentsData: Payment[] = [];
+        
+        paymentsSnapshot.forEach((doc) => {
+          const data = doc.data();
+          paymentsData.push({
+            id: doc.id,
+            applicantId: data.applicantId,
+            applicantName: data.applicantName,
+            amount: data.amount,
+            biller: data.biller,
+            billerAccount: data.billerAccount,
+            date: data.createdAt?.toDate().toISOString().split('T')[0] || new Date().toISOString().split('T')[0],
+            status: data.status as PaymentStatus,
+            createdAt: data.createdAt,
+            updatedAt: data.updatedAt,
+            processedAt: data.processedAt,
+            notes: data.notes
+          });
+        });
+        
+        setPayments(paymentsData);
+        
+        // Fetch applicants
+        const applicantsQuery = query(
+          collection(firestore, 'applicants'),
+          where('status', '==', 'approved')
+        );
+        
+        const applicantsSnapshot = await getDocs(applicantsQuery);
+        const applicantsData: Applicant[] = [];
+        
+        applicantsSnapshot.forEach((doc) => {
+          const data = doc.data();
+          applicantsData.push({
+            id: doc.id,
+            name: `${data.firstName || ''} ${data.lastName || ''}`.trim(),
+            email: data.email,
+            status: data.status
+          });
+        });
+        
+        setApplicants(applicantsData);
+      } catch (err) {
+        console.error('Error fetching data:', err);
+        setError('Failed to load payment data. Please try again.');
+        toast({
+          title: "Data Loading Error",
+          description: err instanceof Error ? err.message : 'An unknown error occurred',
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchData();
+  }, [toast]);
   
   const paymentForm = useForm<z.infer<typeof paymentFormSchema>>({
     resolver: zodResolver(paymentFormSchema),
@@ -113,12 +196,10 @@ const AdminPayments = () => {
     }
   };
   
-  const filteredPayments = mockPayments.filter(payment => 
-    searchTerm === '' || 
+  const filteredPayments = payments.filter((payment) =>
+    payment.applicantName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     payment.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    payment.applicantId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    payment.biller.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    payment.applicantName.toLowerCase().includes(searchTerm.toLowerCase())
+    payment.biller?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const totalAmount = filteredPayments.reduce((sum, payment) => sum + payment.amount, 0);
@@ -126,19 +207,104 @@ const AdminPayments = () => {
   const sentCount = filteredPayments.filter(p => p.status === 'sent').length;
   const failedCount = filteredPayments.filter(p => p.status === 'failed').length;
   
-  const handlePaymentSubmit = (values: z.infer<typeof paymentFormSchema>) => {
-    console.log("Payment form values:", values);
-    toast({
-      title: "Payment initiated",
-      description: `Payment of $${values.amount} to ${values.biller} has been created.`,
-    });
-    setPaymentDialogOpen(false);
-    paymentForm.reset();
+  const handleCreatePayment = async (values: z.infer<typeof paymentFormSchema>) => {
+    try {
+      // Find selected applicant
+      const selectedApplicant = applicants.find(
+        (applicant) => applicant.id === values.applicantId
+      );
+
+      if (!selectedApplicant) {
+        toast({
+          title: "Error",
+          description: "Selected applicant not found",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Create payment document with Firestore
+      const newPaymentRef = doc(collection(firestore, 'payments'));
+      const timestamp = Timestamp.now();
+      
+      const newPayment: Omit<Payment, 'id'> = {
+        applicantId: values.applicantId,
+        applicantName: selectedApplicant.name,
+        amount: parseInt(values.amount),
+        biller: values.biller,
+        billerAccount: values.billerAccount,
+        date: new Date().toISOString().split('T')[0],
+        status: 'pending',
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        notes: 'Created via admin dashboard'
+      };
+
+      // Save to Firestore
+      await setDoc(newPaymentRef, newPayment);
+      
+      // Update local state with new payment
+      setPayments(prevPayments => [
+        {
+          id: newPaymentRef.id,
+          ...newPayment
+        },
+        ...prevPayments
+      ]);
+
+      toast({
+        title: "Payment Created",
+        description: `Payment of $${values.amount} to ${values.biller} has been scheduled.`
+      });
+
+      setPaymentDialogOpen(false);
+      paymentForm.reset();
+    } catch (err) {
+      console.error('Error creating payment:', err);
+      toast({
+        title: "Error Creating Payment",
+        description: err instanceof Error ? err.message : 'An unknown error occurred',
+        variant: "destructive"
+      });
+    }
   };
   
   const viewPaymentDetails = (payment: any) => {
     setSelectedPayment(payment);
     setDetailsDialogOpen(true);
+  };
+
+  const getStatusBadge = (status: PaymentStatus) => {
+    switch (status) {
+      case 'pending':
+        return (
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4 text-yellow-500" />
+            <span className="text-yellow-500 text-sm font-medium">Pending</span>
+          </div>
+        );
+      case 'sent':
+        return (
+          <div className="flex items-center gap-2">
+            <CheckCircle className="h-4 w-4 text-green-500" />
+            <span className="text-green-500 text-sm font-medium">Sent</span>
+          </div>
+        );
+      case 'failed':
+        return (
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 text-red-500" />
+            <span className="text-red-500 text-sm font-medium">Failed</span>
+          </div>
+        );
+      default:
+        return (
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4 text-gray-500" />
+            <span className="text-gray-500 text-sm font-medium">Unknown</span>
+          </div>
+        );
+    }
   };
 
   return (
@@ -238,8 +404,7 @@ const AdminPayments = () => {
                 <TableCell>{new Date(payment.date).toLocaleDateString()}</TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
-                    {getStatusIcon(payment.status as PaymentStatus)}
-                    <span className="capitalize">{payment.status}</span>
+                    {getStatusBadge(payment.status as PaymentStatus)}
                   </div>
                 </TableCell>
                 <TableCell className="text-right space-x-2">
@@ -265,7 +430,7 @@ const AdminPayments = () => {
           </DialogHeader>
           
           <Form {...paymentForm}>
-            <form onSubmit={paymentForm.handleSubmit(handlePaymentSubmit)} className="space-y-4">
+            <form onSubmit={paymentForm.handleSubmit(handleCreatePayment)} className="space-y-4">
               <FormField
                 control={paymentForm.control}
                 name="applicantId"
@@ -279,11 +444,17 @@ const AdminPayments = () => {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {mockApplicantOptions.map(applicant => (
-                          <SelectItem key={applicant.id} value={applicant.id}>
-                            {applicant.name} ({applicant.id})
-                          </SelectItem>
-                        ))}
+                        {isLoading ? (
+                          <SelectItem value="loading" disabled>Loading applicants...</SelectItem>
+                        ) : applicants.length > 0 ? (
+                          applicants.map((applicant) => (
+                            <SelectItem key={applicant.id} value={applicant.id}>
+                              {applicant.name}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="none" disabled>No approved applicants found</SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
                     <FormMessage />

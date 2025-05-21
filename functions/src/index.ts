@@ -270,6 +270,8 @@ const sendEmail = async (
 // Instead of importing from a module, we're importing the specific files
 import { runSubscriptionIntegrityCheck, checkSubscriptionIntegrity } from './subscription/integrityCheck';
 import { subscriptionApiRateLimit, getSubscriptionStatus } from './subscription/index';
+import { verifySubscription } from './subscription/verifySubscription';
+import { stripeWebhookHandler } from './subscription/stripeWebhook';
 
 // Export the public auth endpoints and user management functions
 export { 
@@ -278,17 +280,20 @@ export {
   createVerifiedUser 
 };
 
-// Export the subscription security modules
+// Export the subscription rate limiting, integrity check and verification functions
 export {
+  subscriptionApiRateLimit,
   runSubscriptionIntegrityCheck,
   checkSubscriptionIntegrity,
-  subscriptionApiRateLimit,
-  getSubscriptionStatus
+  getSubscriptionStatus,
+  verifySubscription,
+  stripeWebhookHandler
 };
 
 // Legacy function for authenticated users - now deprecated for pre-auth
 // This is kept for backward compatibility with existing users
-export const sendVerificationCode = functions.https.onCall(async (data: Record<string, unknown>, context: functions.https.CallableContext) => {
+export const sendVerificationCode = functions.https.onCall(async (request) => {
+  const data = request.data as Record<string, unknown>;
   try {
     // Validate input data
     const { email, code } = data;
@@ -421,7 +426,8 @@ export const sendVerificationCode = functions.https.onCall(async (data: Record<s
   }
 });
 // Function to send a custom password reset email
-export const sendPasswordResetEmail = functions.https.onCall(async (data: Record<string, unknown>, _context: functions.https.CallableContext) => {
+export const sendPasswordResetEmail = functions.https.onCall(async (request) => {
+  const data = request.data as Record<string, unknown>;
   try {
     // This function doesn't require authentication since users might be locked out
     const { email } = data;
@@ -481,7 +487,7 @@ export const sendPasswordResetEmail = functions.https.onCall(async (data: Record
 });
 
 // Trigger function to send welcome email when a new user signs up
-export const sendWelcomeEmail = functions.auth.user().onCreate(async (user: admin.auth.UserRecord) => {
+export const sendWelcomeEmail = functions.auth.user.onCreate(async (user: admin.auth.UserRecord) => {
   try {
     if (!user.email) {
       functions.logger.warn("New user has no email address, skipping welcome email");

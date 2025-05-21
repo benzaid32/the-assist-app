@@ -20,25 +20,26 @@ export default {
 		},
 		extend: {
 			colors: {
-				border: '#E0E0E0',
-				input: '#E0E0E0',
-				ring: '#E0E0E0',
+				// Match iOS theme.ts monochromatic palette
+				border: 'rgba(60, 60, 67, 0.25)', // iOS standard separator
+				input: 'rgba(60, 60, 67, 0.12)', // iOS light separator
+				ring: '#333333', // Focus rings matching iOS accent secondary
 				background: '#FFFFFF',
 				foreground: '#000000',
 				uplift: {
-					primary: '#FF5A5F',    // Emergency red from the brief
-					secondary: '#F4A261',  // Warm amber from the brief
-					accent: '#FF5A5F',     
-					muted: '#E0E0E0',      // Light gray from the brief
+					primary: '#000000',    // Primary accent matching iOS
+					secondary: '#333333',  // Secondary accent for hover states
+					accent: '#666666',     // Muted accent for subtle emphasis
+					muted: '#F2F2F7',      // iOS system gray 6
 					light: '#FFFFFF'       // White background
 				},
 				primary: {
-					DEFAULT: '#FF5A5F',
-					foreground: '#FFFFFF'
+					DEFAULT: '#000000',    // Primary accent matching iOS theme
+					foreground: '#FFFFFF'  // White text on primary
 				},
 				secondary: {
-					DEFAULT: '#F4A261',
-					foreground: '#FFFFFF'
+					DEFAULT: '#333333',    // Secondary accent for hover states
+					foreground: '#FFFFFF'  // White text on secondary
 				},
 				destructive: {
 					DEFAULT: '#FF5A5F',

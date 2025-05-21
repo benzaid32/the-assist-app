@@ -33,7 +33,9 @@ export default function SubscribeSuccess() {
       }
       
       try {
-        // Verify the checkout session completed successfully
+        // Verify the checkout session completed successfully using client-side verification
+        // This is just to provide immediate feedback to the user
+        // The actual subscription update will happen via the server-side webhook
         const result = await verifySessionCompletion(sessionId);
         
         if (!result.success || result.error) {
@@ -42,26 +44,17 @@ export default function SubscribeSuccess() {
           return;
         }
         
-        // Update subscription status in Firestore
-        if (result.userId && result.subscriptionId && result.status) {
-          // Determine subscription tier based on the checkout session
-          // In a real implementation, you'd get the product details to determine tier
-          // For now, default to monthly
-          await StripeService.updateSubscriptionStatus(result.userId, {
-            status: result.status as SubscriptionStatus,
-            tier: "monthly",
-            stripeSubscriptionId: result.subscriptionId,
-            updatedAt: new Date(),
-          });
-          
-          setSuccess(true);
-          toast({
-            title: "Subscription Activated",
-            description: "Your account has been successfully upgraded!",
-          });
-        } else {
-          setError("Missing subscription details. Please contact support.");
-        }
+        // The webhook will handle the actual subscription update
+        // We just need to show success to the user
+        console.log("Subscription payment verified. Updates will be processed by the server.");
+        
+        // Set success state immediately for better UX
+        setSuccess(true);
+        toast({
+          title: "Subscription Activated",
+          description: "Your account has been successfully upgraded!",
+        });
+        
       } catch (error) {
         console.error("Error verifying subscription:", error);
         setError("An unexpected error occurred. Please contact support.");

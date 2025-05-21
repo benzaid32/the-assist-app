@@ -39,7 +39,7 @@ const AdminLayout = () => {
   return (
     <SidebarProvider defaultOpen={true}>
       <div className="min-h-screen flex w-full">
-        <Sidebar className="bg-[#1F2937] text-white">
+        <Sidebar className="bg-black text-white">
           <SidebarHeader>
             <div className="p-5">
               <h1 className="text-xl font-bold">Dashboard</h1>

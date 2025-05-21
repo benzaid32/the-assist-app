@@ -46,7 +46,7 @@ const LandingPage = () => {
             </ul>
           </nav>
           
-          <Button onClick={() => navigate('/admin/login')} className="hidden md:flex bg-green-500 hover:bg-green-600 text-white rounded-full px-6 shadow-md transition-all duration-300 hover:shadow-lg">
+          <Button onClick={() => navigate('/admin/login')} className="hidden md:flex bg-black hover:bg-black/90 text-white rounded-full px-6 shadow-md transition-all duration-300 hover:shadow-lg">
             <Apple className="mr-2 h-4 w-4" />
             Download on iOS
           </Button>
@@ -59,13 +59,13 @@ const LandingPage = () => {
           {/* Left Content */}
           <div className="w-full md:w-1/2 text-center md:text-left mb-10 md:mb-0 animate-fade-in">
             <div className="space-y-4 max-w-lg mx-auto md:mx-0 md:pr-8">
-              <div className="inline-block bg-green-500/10 text-green-600 px-3 py-1 rounded-full text-xs font-medium mb-2">
+              <div className="inline-block bg-black/5 text-black px-3 py-1 rounded-full text-xs font-medium mb-2">
                 Coming Soon
               </div>
               
               <h1 className="text-4xl md:text-5xl font-bold tracking-tighter mb-2 leading-tight">
                 Believe in<br />
-                <span className="text-green-500">Assistance</span>
+                <span className="text-black">Assistance</span>
               </h1>
               
               <p className="text-lg text-muted-foreground mb-6">
@@ -74,12 +74,12 @@ const LandingPage = () => {
               
               {/* CTA Buttons */}
               <div className="flex flex-col sm:flex-row gap-3 justify-center md:justify-start mb-8">
-                <Button className="bg-green-500 hover:bg-green-600 text-white rounded-full px-6 py-6 shadow-md transition-all duration-300 hover:shadow-lg hover:translate-y-[-2px]">
+                <Button className="bg-black hover:bg-black/90 text-white rounded-full px-6 py-6 shadow-md transition-all duration-300 hover:shadow-lg hover:translate-y-[-2px]">
                   <Apple className="mr-2 h-5 w-5" />
                   Download on iOS
                 </Button>
                 
-                <Button variant="outline" className="rounded-full border-green-200 hover:border-green-300 px-6 py-6 bg-white/50 hover:bg-white/80 transition-all duration-300">
+                <Button variant="outline" className="rounded-full border-black/20 hover:border-black/30 px-6 py-6 bg-white/50 hover:bg-white/80 transition-all duration-300">
                   Learn more
                   <ChevronRight className="ml-1 h-4 w-4" />
                 </Button>
@@ -114,10 +114,10 @@ const LandingPage = () => {
               <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1/4 -rotate-12 z-10 hidden md:block">
                 <div className="transform hover:scale-[1.02] transition-all duration-700 shadow-2xl rounded-3xl overflow-hidden">
                   <img 
-                    src="https://believe.app/images/phone.svg" 
+                    src="/assets/screen1.png" 
                     alt="Assist App Screen" 
-                    className="h-[400px] object-contain"
-                    style={{ filter: 'brightness(0.9)' }}
+                    className="h-[400px] object-contain rounded-3xl"
+                    style={{ filter: 'brightness(0.95)' }}
                   />
                 </div>
               </div>
@@ -127,9 +127,9 @@ const LandingPage = () => {
                 <div className="transform hover:scale-[1.05] transition-all duration-700 shadow-2xl rounded-3xl overflow-hidden">
                   <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 w-3/4 h-6 bg-black/10 blur-xl rounded-full"></div>
                   <img 
-                    src="https://believe.app/images/phone.svg" 
+                    src="/assets/screen2.png" 
                     alt="Assist App Main Screen" 
-                    className="h-[450px] md:h-[500px] object-contain"
+                    className="h-[450px] md:h-[500px] object-contain rounded-3xl"
                   />
                 </div>
               </div>
@@ -138,10 +138,10 @@ const LandingPage = () => {
               <div className="absolute right-0 top-1/2 transform -translate-y-1/2 translate-x-1/4 rotate-12 z-10 hidden md:block">
                 <div className="transform hover:scale-[1.02] transition-all duration-700 shadow-2xl rounded-3xl overflow-hidden">
                   <img 
-                    src="https://believe.app/images/phone.svg" 
+                    src="/assets/screen3.png" 
                     alt="Assist App Screen" 
-                    className="h-[400px] object-contain"
-                    style={{ filter: 'brightness(0.9)' }}
+                    className="h-[400px] object-contain rounded-3xl"
+                    style={{ filter: 'brightness(0.95)' }}
                   />
                 </div>
               </div>
@@ -155,11 +155,11 @@ const LandingPage = () => {
             <div className="container mx-auto px-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 <div className="text-center p-6 rounded-xl hover:bg-white/80 transition-all duration-300">
-                  <div className="w-14 h-14 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <div className="w-14 h-14 bg-black/5 rounded-full flex items-center justify-center mx-auto mb-4">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="#00C795" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      <path d="M15 9L9 15" stroke="#00C795" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      <path d="M9 9L15 15" stroke="#00C795" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M15 9L9 15" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M9 9L15 15" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
                   </div>
                   <h3 className="text-xl font-semibold mb-2">Simple Process</h3>
